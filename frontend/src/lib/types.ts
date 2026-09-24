@@ -19,6 +19,7 @@ export interface Product {
   depthCm: number;
   sku: string;
   isActive: boolean;
+  createdAt: string;
 }
 
 export interface CartItem {

@@ -78,7 +78,7 @@ export default function CartPage() {
 
           <button
             onClick={() => router.push("/checkout")}
-            className="w-full rounded-full bg-accent px-6 py-3 font-semibold text-accent-foreground"
+            className="btn-primary w-full rounded-full px-6 py-3"
           >
             Continuar al pago
           </button>

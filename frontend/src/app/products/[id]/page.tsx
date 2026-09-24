@@ -38,10 +38,10 @@ export default function ProductDetailPage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
       <div className="grid gap-8 sm:grid-cols-2">
-        <div className="aspect-square rounded-2xl bg-muted" />
+        <div className="product-media aspect-square rounded-2xl" />
         <div>
-          <h1 className="text-2xl font-bold">{product.name}</h1>
-          <p className="mt-3 text-2xl font-bold">{formatCOP(product.price)}</p>
+          <h1 className="text-3xl font-extrabold tracking-tight">{product.name}</h1>
+          <p className="mt-3 text-3xl font-extrabold">{formatCOP(product.price)}</p>
           <p className="mt-4 text-muted-foreground">{product.description}</p>
           <p className="mt-4 text-sm text-muted-foreground">
             {product.stock > 0 ? `${product.stock} disponibles` : "Sin stock"}
@@ -50,7 +50,7 @@ export default function ProductDetailPage() {
           <button
             onClick={handleAddToCart}
             disabled={product.stock === 0 || status === "adding"}
-            className="mt-6 w-full rounded-full bg-accent px-6 py-3 font-semibold text-accent-foreground disabled:opacity-50"
+            className="btn-primary mt-6 w-full rounded-full px-6 py-3 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {status === "added" ? "Agregado ✓" : status === "adding" ? "Agregando…" : "Añadir al carrito"}
           </button>

@@ -108,7 +108,7 @@ export default function CheckoutPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-full bg-accent px-6 py-2.5 font-semibold text-accent-foreground disabled:opacity-50"
+            className="btn-primary w-full rounded-full px-6 py-2.5 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? "Guardando…" : "Continuar"}
           </button>
@@ -134,7 +134,7 @@ export default function CheckoutPage() {
           <button
             onClick={handleConfirmOrder}
             disabled={loading}
-            className="w-full rounded-full bg-accent px-6 py-2.5 font-semibold text-accent-foreground disabled:opacity-50"
+            className="btn-primary w-full rounded-full px-6 py-2.5 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? "Creando orden…" : "Confirmar y pagar"}
           </button>

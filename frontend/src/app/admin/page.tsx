@@ -74,7 +74,7 @@ export default function AdminOrdersPage() {
                 <form onSubmit={(e) => handleDispatch(order.id, e)} className="mt-3 flex flex-wrap gap-2">
                   <input name="carrier" placeholder="Transportadora" required className="rounded-lg border border-border px-2 py-1 text-sm" />
                   <input name="trackingNumber" placeholder="Número de guía" required className="rounded-lg border border-border px-2 py-1 text-sm" />
-                  <button type="submit" className="rounded-full bg-accent px-4 py-1 text-sm font-semibold text-accent-foreground">
+                  <button type="submit" className="btn-primary rounded-full px-4 py-1 text-sm">
                     Confirmar despacho
                   </button>
                 </form>

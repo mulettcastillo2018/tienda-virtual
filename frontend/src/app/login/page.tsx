@@ -66,7 +66,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-full bg-accent px-6 py-2.5 font-semibold text-accent-foreground disabled:opacity-50"
+          className="btn-primary w-full rounded-full px-6 py-2.5 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading ? "Cargando…" : mode === "login" ? "Ingresar" : "Crear cuenta"}
         </button>
