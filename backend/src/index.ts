@@ -3,6 +3,7 @@ import cors from "cors";
 import express from "express";
 
 import { authRouter } from "./routes/auth.routes";
+import { addressesRouter } from "./routes/addresses.routes";
 import { categoriesRouter } from "./routes/categories.routes";
 import { productsRouter } from "./routes/products.routes";
 import { cartRouter } from "./routes/cart.routes";
@@ -24,6 +25,7 @@ app.get("/health", (_req, res) => {
 });
 
 app.use("/auth", authRouter);
+app.use("/addresses", addressesRouter);
 app.use("/categories", categoriesRouter);
 app.use("/products", productsRouter);
 app.use("/cart", cartRouter);
