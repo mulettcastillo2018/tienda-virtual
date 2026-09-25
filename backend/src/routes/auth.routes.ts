@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { signToken } from "../lib/jwt";
+import { catchAsync } from "../lib/catchAsync";
 
 export const authRouter = Router();
 
@@ -11,7 +12,7 @@ const registerSchema = z.object({
   password: z.string().min(8),
 });
 
-authRouter.post("/register", async (req, res) => {
+authRouter.post("/register", catchAsync(async (req, res) => {
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
@@ -34,14 +35,14 @@ authRouter.post("/register", async (req, res) => {
 
   const token = signToken({ userId: user.id, role: user.role });
   res.status(201).json({ token, user: { id: user.id, email: user.email, role: user.role } });
-});
+}));
 
 const loginSchema = z.object({
   email: z.string().trim().email(),
   password: z.string().min(1),
 });
 
-authRouter.post("/login", async (req, res) => {
+authRouter.post("/login", catchAsync(async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
@@ -57,4 +58,4 @@ authRouter.post("/login", async (req, res) => {
 
   const token = signToken({ userId: user.id, role: user.role });
   res.json({ token, user: { id: user.id, email: user.email, role: user.role } });
-});
+}));
