@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { useAuthStore } from "@/store/auth.store";
@@ -38,7 +39,18 @@ export default function ProductDetailPage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
       <div className="grid gap-8 sm:grid-cols-2">
-        <div className="product-media aspect-square rounded-2xl" />
+        <div className="product-media relative aspect-square overflow-hidden rounded-2xl">
+          {product.images[0] ? (
+            <Image
+              src={product.images[0]}
+              alt={product.name}
+              fill
+              sizes="(min-width: 640px) 50vw, 100vw"
+              className="object-cover"
+              priority
+            />
+          ) : null}
+        </div>
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">{product.name}</h1>
           <p className="mt-3 text-3xl font-extrabold">{formatCOP(product.price)}</p>

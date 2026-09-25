@@ -4,6 +4,10 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+function image(seed: string) {
+  return `https://picsum.photos/seed/${seed}/800/800`;
+}
+
 async function main() {
   const admin = await prisma.user.upsert({
     where: { email: "admin@tienda.test" },
@@ -20,54 +24,209 @@ async function main() {
     create: { userId: admin.id },
   });
 
-  const electronica = await prisma.category.upsert({
-    where: { slug: "electronica" },
-    update: {},
-    create: { name: "Electrónica", slug: "electronica" },
-  });
-  const hogar = await prisma.category.upsert({
-    where: { slug: "hogar" },
-    update: {},
-    create: { name: "Hogar", slug: "hogar" },
-  });
+  const categories = {
+    electronica: await prisma.category.upsert({
+      where: { slug: "electronica" },
+      update: {},
+      create: { name: "Electrónica", slug: "electronica" },
+    }),
+    hogar: await prisma.category.upsert({
+      where: { slug: "hogar" },
+      update: {},
+      create: { name: "Hogar", slug: "hogar" },
+    }),
+    moda: await prisma.category.upsert({
+      where: { slug: "moda" },
+      update: {},
+      create: { name: "Moda", slug: "moda" },
+    }),
+    deportes: await prisma.category.upsert({
+      where: { slug: "deportes" },
+      update: {},
+      create: { name: "Deportes", slug: "deportes" },
+    }),
+  };
 
-  await prisma.product.upsert({
-    where: { sku: "AUD-001" },
-    update: {},
-    create: {
+  const products = [
+    {
+      sku: "AUD-001",
       name: "Audífonos inalámbricos",
       description: "Audífonos bluetooth con cancelación de ruido.",
       price: 129_000,
       stock: 25,
-      categoryId: electronica.id,
-      images: [],
+      category: categories.electronica,
       weightInGrams: 250,
       widthCm: 18,
       heightCm: 20,
       depthCm: 8,
-      sku: "AUD-001",
     },
-  });
-
-  await prisma.product.upsert({
-    where: { sku: "LAM-001" },
-    update: {},
-    create: {
+    {
+      sku: "PAR-001",
+      name: "Parlante Bluetooth portátil",
+      description: "Sonido envolvente, resistente al agua (IPX6), 12 horas de batería.",
+      price: 149_000,
+      stock: 18,
+      category: categories.electronica,
+      weightInGrams: 480,
+      widthCm: 12,
+      heightCm: 12,
+      depthCm: 12,
+    },
+    {
+      sku: "MOU-001",
+      name: "Mouse inalámbrico ergonómico",
+      description: "Diseño ergonómico, sensor óptico de precisión, silencioso.",
+      price: 69_000,
+      stock: 30,
+      category: categories.electronica,
+      weightInGrams: 110,
+      widthCm: 6,
+      heightCm: 4,
+      depthCm: 11,
+    },
+    {
+      sku: "CAR-001",
+      name: "Cargador rápido USB-C 30W",
+      description: "Carga rápida compatible con la mayoría de celulares y tablets.",
+      price: 45_000,
+      stock: 40,
+      category: categories.electronica,
+      weightInGrams: 90,
+      widthCm: 5,
+      heightCm: 5,
+      depthCm: 3,
+    },
+    {
+      sku: "LAM-001",
       name: "Lámpara de escritorio LED",
       description: "Lámpara regulable con puerto USB.",
       price: 79_000,
       stock: 40,
-      categoryId: hogar.id,
-      images: [],
+      category: categories.hogar,
       weightInGrams: 600,
       widthCm: 15,
       heightCm: 40,
       depthCm: 15,
-      sku: "LAM-001",
     },
-  });
+    {
+      sku: "ORG-001",
+      name: "Organizador de escritorio de bambú",
+      description: "Compartimentos para lápices, celular y accesorios de oficina.",
+      price: 55_000,
+      stock: 22,
+      category: categories.hogar,
+      weightInGrams: 700,
+      widthCm: 25,
+      heightCm: 15,
+      depthCm: 12,
+    },
+    {
+      sku: "DIF-001",
+      name: "Difusor de aromas ultrasónico",
+      description: "Con luz LED de colores, ideal para espacios pequeños.",
+      price: 89_000,
+      stock: 15,
+      category: categories.hogar,
+      weightInGrams: 450,
+      widthCm: 14,
+      heightCm: 16,
+      depthCm: 14,
+    },
+    {
+      sku: "TAZ-001",
+      name: "Set de tazas de cerámica x4",
+      description: "Diseño minimalista, aptas para microondas y lavavajillas.",
+      price: 65_000,
+      stock: 20,
+      category: categories.hogar,
+      weightInGrams: 1200,
+      widthCm: 20,
+      heightCm: 12,
+      depthCm: 20,
+    },
+    {
+      sku: "MOC-001",
+      name: "Mochila urbana antirrobo",
+      description: "Compartimento acolchado para portátil, puerto USB externo.",
+      price: 159_000,
+      stock: 12,
+      category: categories.moda,
+      weightInGrams: 850,
+      widthCm: 30,
+      heightCm: 45,
+      depthCm: 15,
+    },
+    {
+      sku: "GOR-001",
+      name: "Gorra unisex ajustable",
+      description: "Algodón transpirable, ajuste trasero universal.",
+      price: 39_000,
+      stock: 35,
+      category: categories.moda,
+      weightInGrams: 120,
+      widthCm: 20,
+      heightCm: 15,
+      depthCm: 20,
+    },
+    {
+      sku: "BIL-001",
+      name: "Billetera de cuero minimalista",
+      description: "Cuero genuino, diseño delgado con protección RFID.",
+      price: 75_000,
+      stock: 20,
+      category: categories.moda,
+      weightInGrams: 90,
+      widthCm: 10,
+      heightCm: 8,
+      depthCm: 1,
+    },
+    {
+      sku: "BOT-001",
+      name: "Botella térmica deportiva 750ml",
+      description: "Mantiene la temperatura hasta 12 horas, acero inoxidable.",
+      price: 59_000,
+      stock: 28,
+      category: categories.deportes,
+      weightInGrams: 350,
+      widthCm: 8,
+      heightCm: 26,
+      depthCm: 8,
+    },
+    {
+      sku: "BAN-001",
+      name: "Bandas de resistencia (set x3)",
+      description: "Distintos niveles de resistencia, incluye bolsa de transporte.",
+      price: 49_000,
+      stock: 25,
+      category: categories.deportes,
+      weightInGrams: 300,
+      widthCm: 15,
+      heightCm: 20,
+      depthCm: 5,
+    },
+  ];
 
-  console.log("Seed completado. Admin: admin@tienda.test / admin1234");
+  for (const p of products) {
+    await prisma.product.upsert({
+      where: { sku: p.sku },
+      update: {},
+      create: {
+        name: p.name,
+        description: p.description,
+        price: p.price,
+        stock: p.stock,
+        categoryId: p.category.id,
+        images: [image(p.sku.toLowerCase())],
+        weightInGrams: p.weightInGrams,
+        widthCm: p.widthCm,
+        heightCm: p.heightCm,
+        depthCm: p.depthCm,
+        sku: p.sku,
+      },
+    });
+  }
+
+  console.log(`Seed completado. ${products.length} productos. Admin: admin@tienda.test / admin1234`);
 }
 
 main()
