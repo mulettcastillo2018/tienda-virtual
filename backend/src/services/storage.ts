@@ -1,10 +1,17 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import type { Readable } from "node:stream";
+import type { Response } from "express";
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
-// Todo lo que tiene que ver con dónde viven los archivos subidos está aquí:
-// para pasar a un almacenamiento en la nube (R2, S3, Cloudinary) solo cambia
-// este archivo.
+// Todo lo que tiene que ver con dónde viven los archivos subidos está aquí.
+// Dos modos (STORAGE_DRIVER):
+// - "local" (por defecto): en el disco del servidor.
+// - "s3": en un almacenamiento compatible con S3 (Cloudflare R2, AWS S3...),
+//   con un bucket público para las imágenes de productos y uno privado para
+//   los adjuntos de PQRS. Necesario en hostings cuyo disco se borra en cada
+//   despliegue.
 //
 // - Imágenes de productos: públicas. En la base se guarda la ruta relativa
 //   (/uploads/products/<archivo>), no la dirección completa, para que cambiar
@@ -13,17 +20,43 @@ import path from "node:path";
 //   Se guarda la clave (pqrs/<archivo>) y se entregan con enlaces firmados que
 //   vencen.
 
-const UPLOADS_DIR = path.join(__dirname, "../../uploads");
-const PRIVATE_DIR = path.join(__dirname, "../../uploads-private");
+// Carpeta base de los archivos: por defecto la del backend (igual en
+// desarrollo con tsx y en producción desde dist/). En un hosting con disco
+// persistente, FILES_DIR apunta a ese disco.
+const FILES_DIR = process.env.FILES_DIR ?? path.join(__dirname, "../..");
+export const UPLOADS_DIR = path.join(FILES_DIR, "uploads");
+const PRIVATE_DIR = path.join(FILES_DIR, "uploads-private");
 fs.mkdirSync(path.join(UPLOADS_DIR, "products"), { recursive: true });
 fs.mkdirSync(path.join(PRIVATE_DIR, "pqrs"), { recursive: true });
 
 export const PRODUCT_IMAGE_PREFIX = "/uploads/products/";
 const SIGNED_URL_TTL_SECONDS = 60 * 60;
 
-function filesBaseUrl(): string {
-  return (process.env.PUBLIC_FILES_URL ?? process.env.BACKEND_URL ?? "http://localhost:4000").replace(/\/$/, "");
+const trimSlash = (url: string) => url.replace(/\/$/, "");
+const apiBaseUrl = () => trimSlash(process.env.BACKEND_URL ?? "http://localhost:4000");
+// Dónde se ven las imágenes públicas: la API (modo local) o el bucket público.
+const filesBaseUrl = () => trimSlash(process.env.PUBLIC_FILES_URL ?? apiBaseUrl());
+
+const useS3 = () => process.env.STORAGE_DRIVER === "s3";
+
+let s3Client: S3Client | null = null;
+function s3(): S3Client {
+  if (!s3Client) {
+    s3Client = new S3Client({
+      region: process.env.S3_REGION ?? "auto",
+      endpoint: process.env.S3_ENDPOINT,
+      forcePathStyle: process.env.S3_FORCE_PATH_STYLE === "true",
+      credentials: { accessKeyId: process.env.S3_ACCESS_KEY_ID ?? "", secretAccessKey: process.env.S3_SECRET_ACCESS_KEY ?? "" },
+      // Los proveedores compatibles (como R2) no siempre aceptan las sumas de
+      // verificación opcionales que el SDK agrega por defecto.
+      requestChecksumCalculation: "WHEN_REQUIRED",
+      responseChecksumValidation: "WHEN_REQUIRED",
+    });
+  }
+  return s3Client;
 }
+const publicBucket = () => process.env.S3_PUBLIC_BUCKET!;
+const privateBucket = () => process.env.S3_PRIVATE_BUCKET!;
 
 // --- Tipo real del archivo ---
 // Se decide por los primeros bytes, no por el nombre ni por el tipo que
@@ -56,6 +89,21 @@ export type UploadKind = "products" | "pqrs";
 // Devuelve la clave: "/uploads/products/<archivo>" o "pqrs/<archivo>".
 export async function saveUpload(kind: UploadKind, buffer: Buffer, type: DetectedType): Promise<string> {
   const name = `${crypto.randomUUID()}${type.ext}`;
+  if (useS3()) {
+    // La clave del objeto es la misma ruta (sin la barra inicial), así la
+    // dirección pública es PUBLIC_FILES_URL + ruta guardada.
+    const key = kind === "products" ? `${PRODUCT_IMAGE_PREFIX}${name}` : `pqrs/${name}`;
+    await s3().send(
+      new PutObjectCommand({
+        Bucket: kind === "products" ? publicBucket() : privateBucket(),
+        Key: key.replace(/^\//, ""),
+        Body: buffer,
+        ContentType: type.mime,
+        ...(kind === "products" ? { CacheControl: "public, max-age=31536000, immutable" } : {}),
+      })
+    );
+    return key;
+  }
   if (kind === "products") {
     await fs.promises.writeFile(path.join(UPLOADS_DIR, "products", name), buffer);
     return `${PRODUCT_IMAGE_PREFIX}${name}`;
@@ -105,27 +153,51 @@ function signature(key: string, expires: number): string {
 }
 
 // Enlace temporal a un adjunto privado (sirve en <img>, <video> y enlaces,
-// que no pueden enviar el token de sesión).
+// que no pueden enviar el token de sesión). Siempre lo entrega la API, que
+// revisa la firma; nunca el bucket directamente.
 export function signedPrivateUrl(key: string | null): string | null {
   if (!key) return null;
   const expires = Math.floor(Date.now() / 1000) + SIGNED_URL_TTL_SECONDS;
-  return `${filesBaseUrl()}/files/${key}?exp=${expires}&sig=${signature(key, expires)}`;
+  return `${apiBaseUrl()}/files/${key}?exp=${expires}&sig=${signature(key, expires)}`;
 }
 
-// Ruta en disco del adjunto si la firma es correcta y no ha vencido.
-export function verifiedPrivatePath(key: string, exp: unknown, sig: unknown): string | null {
-  if (!/^pqrs\/[\w-]+\.(jpg|png|gif|webp|mp4|mov|webm)$/.test(key)) return null;
+// true si la clave tiene la forma esperada y la firma es correcta y vigente.
+export function isValidSignedKey(key: string, exp: unknown, sig: unknown): boolean {
+  if (!/^pqrs\/[\w-]+\.(jpg|png|gif|webp|mp4|mov|webm)$/.test(key)) return false;
   const expires = Number(exp);
-  if (!Number.isInteger(expires) || expires < Date.now() / 1000 || typeof sig !== "string") return null;
+  if (!Number.isInteger(expires) || expires < Date.now() / 1000 || typeof sig !== "string") return false;
   const expected = Buffer.from(signature(key, expires));
   const received = Buffer.from(sig);
-  if (expected.length !== received.length || !crypto.timingSafeEqual(expected, received)) return null;
-  const file = path.join(PRIVATE_DIR, key);
-  return fs.existsSync(file) ? file : null;
+  return expected.length === received.length && crypto.timingSafeEqual(expected, received);
+}
+
+// Envía un adjunto privado desde donde esté guardado. false si no existe.
+export async function sendPrivateFile(res: Response, key: string): Promise<boolean> {
+  if (!useS3()) {
+    const file = path.join(PRIVATE_DIR, key);
+    if (!fs.existsSync(file)) return false;
+    res.sendFile(file);
+    return true;
+  }
+  try {
+    const object = await s3().send(new GetObjectCommand({ Bucket: privateBucket(), Key: key }));
+    if (object.ContentType) res.setHeader("Content-Type", object.ContentType);
+    if (object.ContentLength !== undefined) res.setHeader("Content-Length", String(object.ContentLength));
+    (object.Body as Readable).pipe(res);
+    return true;
+  } catch (err) {
+    if ((err as { name?: string }).name === "NoSuchKey") return false;
+    throw err;
+  }
 }
 
 // Para las pruebas: borrar lo que subieron.
 export async function deleteUpload(key: string) {
+  if (useS3()) {
+    const isProduct = key.startsWith(PRODUCT_IMAGE_PREFIX);
+    await s3().send(new DeleteObjectCommand({ Bucket: isProduct ? publicBucket() : privateBucket(), Key: key.replace(/^\//, "") }));
+    return;
+  }
   const file = key.startsWith(PRODUCT_IMAGE_PREFIX) ? path.join(UPLOADS_DIR, key.slice("/uploads/".length)) : path.join(PRIVATE_DIR, key);
   await fs.promises.rm(file, { force: true });
 }

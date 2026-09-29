@@ -1,0 +1,56 @@
+# Blueprint de Render para la API de la tienda (el frontend va en Vercel).
+# Paso a paso en docs/DESPLIEGUE.md. Los valores con `sync: false` se
+# escriben en el panel de Render al crear el servicio (nunca en el repositorio).
+services:
+  - type: web
+    name: tienda-virtual-api
+    runtime: node
+    rootDir: backend
+    plan: free
+    region: ohio
+    # --include=dev: TypeScript y la CLI de Prisma son dependencias de
+    # desarrollo y hacen falta para compilar y migrar.
+    buildCommand: npm ci --include=dev && npx prisma generate && npm run build
+    startCommand: npx prisma migrate deploy && npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: TRUST_PROXY
+        value: "1"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: FILES_SIGNING_SECRET
+        generateValue: true
+      - key: STORAGE_DRIVER
+        value: s3
+      - key: S3_REGION
+        value: auto
+      - key: S3_PUBLIC_BUCKET
+        value: tienda-publico
+      - key: S3_PRIVATE_BUCKET
+        value: tienda-privado
+      - key: DATABASE_URL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: BACKEND_URL
+        sync: false
+      - key: PUBLIC_FILES_URL
+        sync: false
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: WOMPI_PUBLIC_KEY
+        sync: false
+      - key: WOMPI_PRIVATE_KEY
+        sync: false
+      - key: WOMPI_EVENTS_SECRET
+        sync: false
+      - key: WOMPI_INTEGRITY_SECRET
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false

@@ -45,7 +45,7 @@ Después de construir la tienda, se hizo un [análisis técnico y de negocio](do
 | 2 · Cuentas | Sesiones revocables al instante (desactivar, cambiar rol o contraseña), límites de intentos, OAuth con `state` y sin vinculación automática de cuentas, correos escapados, cabeceras de seguridad. |
 | 3 · Archivos | Tipo real de cada archivo por su contenido, adjuntos de PQRS privados con enlaces firmados, imágenes sin dominio fijo, integración continua. |
 
-Las pruebas automáticas (86 comprobaciones) corren en cada cambio en GitHub Actions contra una base de datos nueva.
+Las pruebas automáticas (94 comprobaciones) corren en cada cambio en GitHub Actions contra una base de datos nueva.
 
 ## Arquitectura
 
@@ -123,11 +123,15 @@ npm run test:tipos    # tipos de las pruebas
 npm run db:verificar  # el esquema coincide con la base
 ```
 
-Suites: pagos con Wompi (webhooks firmados, rechazos, vencimiento, aprobación tardía, anulaciones), seguridad de las cuentas (sesiones, límites, OAuth, tokens manipulados) y archivos subidos (tipo real, enlaces firmados, imágenes).
+Suites: pagos con Wompi (webhooks firmados, rechazos, vencimiento, aprobación tardía, anulaciones), seguridad de las cuentas (sesiones, límites, OAuth, tokens manipulados), archivos subidos (tipo real, enlaces firmados, imágenes) y almacenamiento en la nube contra un S3 simulado.
+
+## Publicar una demo
+
+Todo está listo para publicarla gratis con Neon (base de datos), Render (API, con `render.yaml`), Vercel (frontend) y Cloudflare R2 (archivos, compatible con S3). Paso a paso en [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md).
 
 ## Estado y siguientes pasos
 
-- **Fase 3 (resto)**: almacenamiento de imágenes en la nube y despliegue de una demo con HTTPS.
+- **Fase 3 (resto)**: crear las cuentas y publicar la demo siguiendo la guía de despliegue.
 - **Fase 4**: estados de pedido completos (en preparación, entregado), validaciones de carrito, copia de la dirección en el pedido, paginación e índices, tablero de ventas.
 - **Fase 5**: SEO (páginas renderizadas en el servidor, metadatos, sitemap), compra como invitado, pago contra entrega.
 - **Fase 6**: autorización de datos (Ley 1581), identificación del comerciante y facturación electrónica.
@@ -136,4 +140,4 @@ Suites: pagos con Wompi (webhooks firmados, rechazos, vencimiento, aprobación t
 
 ### English summary
 
-Complete Colombian e-commerce store: catalog, cart, Wompi payments with retries and automatic expiry, discount traceability, legally compliant after-sales (PQRS), admin panel, bilingual and dark mode. Built with Next.js, Express, PostgreSQL and Prisma by **directing an AI coding agent (Claude Code)**: I defined the product, requested a full technical audit and prioritized the fixes (idempotent payments, revocable sessions, secure OAuth, private signed file links); the agent implemented them with 86 automated checks running in CI.
+Complete Colombian e-commerce store: catalog, cart, Wompi payments with retries and automatic expiry, discount traceability, legally compliant after-sales (PQRS), admin panel, bilingual and dark mode. Built with Next.js, Express, PostgreSQL and Prisma by **directing an AI coding agent (Claude Code)**: I defined the product, requested a full technical audit and prioritized the fixes (idempotent payments, revocable sessions, secure OAuth, private signed file links); the agent implemented them with 94 automated checks running in CI.

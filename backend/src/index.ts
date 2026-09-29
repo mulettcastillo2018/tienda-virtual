@@ -1,5 +1,4 @@
 import "dotenv/config";
-import path from "node:path";
 import cors from "cors";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
@@ -22,6 +21,11 @@ import { oauthRouter } from "./routes/oauth.routes";
 import { reviewsRouter } from "./routes/reviews.routes";
 import { filesRouter } from "./routes/files.routes";
 import { startOrderExpiryJob } from "./services/payments.service";
+import { UPLOADS_DIR } from "./services/storage";
+import { checkEnvironment } from "./lib/env";
+import { prisma } from "./lib/prisma";
+
+checkEnvironment();
 
 const app = express();
 const port = process.env.PORT ?? 4000;
@@ -54,7 +58,7 @@ app.use(express.json());
 // en otro origen.
 app.use(
   "/uploads",
-  express.static(path.join(__dirname, "../uploads"), {
+  express.static(UPLOADS_DIR, {
     setHeaders: (res) => {
       res.setHeader("Content-Security-Policy", "default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'; sandbox");
       res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
@@ -62,8 +66,15 @@ app.use(
   })
 );
 
-app.get("/health", (_req, res) => {
-  res.json({ ok: true });
+// Para el hosting: responde 503 si la base de datos no contesta, así el
+// servicio se marca como caído en vez de recibir tráfico que va a fallar.
+app.get("/health", async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ ok: true, db: true });
+  } catch {
+    res.status(503).json({ ok: false, db: false });
+  }
 });
 
 app.use("/auth", authRouter);

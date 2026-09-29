@@ -52,6 +52,8 @@ jobs:
         run: |
           npx tsc --noEmit
           npx tsc -p tests
+      - name: Compilación de producción
+        run: npm run build && test -f dist/index.js
       - name: Datos iniciales (categorías, productos de ejemplo)
         run: npx prisma db seed
       - name: Arrancar la API
