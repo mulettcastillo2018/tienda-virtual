@@ -1,5 +1,9 @@
 import type { NextConfig } from "next";
 
+// Las imágenes subidas se sirven desde la API (o, más adelante, desde el
+// almacenamiento que se elija): se permite ese origen, sea cual sea.
+const filesOrigin = new URL(process.env.NEXT_PUBLIC_FILES_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000");
+
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
@@ -8,9 +12,9 @@ const nextConfig: NextConfig = {
         hostname: "images.unsplash.com",
       },
       {
-        protocol: "http",
-        hostname: "localhost",
-        port: "4000",
+        protocol: filesOrigin.protocol.replace(":", "") as "http" | "https",
+        hostname: filesOrigin.hostname,
+        port: filesOrigin.port,
         pathname: "/uploads/**",
       },
     ],

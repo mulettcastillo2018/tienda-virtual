@@ -96,18 +96,19 @@ export default function AccountPage() {
     setPqrsError(null);
     setSubmittingPqrs(true);
     try {
-      let attachmentUrl: string | undefined;
+      // El adjunto se sube primero y la solicitud lleva su clave (privada).
+      let attachmentKey: string | undefined;
       if (pqrsAttachment) {
         setUploadingAttachment(true);
-        const { url } = await uploadFile<{ url: string }>("/uploads/pqrs-attachment", pqrsAttachment, token);
-        attachmentUrl = url;
+        const { key } = await uploadFile<{ key: string }>("/uploads/pqrs-attachment", pqrsAttachment, token);
+        attachmentKey = key;
         setUploadingAttachment(false);
       }
 
       const created = await apiFetch<Pqrs>("/pqrs", {
         method: "POST",
         token,
-        body: JSON.stringify({ type, subject, message, ...(orderId ? { orderId } : {}), ...(attachmentUrl ? { attachmentUrl } : {}) }),
+        body: JSON.stringify({ type, subject, message, ...(orderId ? { orderId } : {}), ...(attachmentKey ? { attachmentKey } : {}) }),
       });
       setPqrsList((prev) => [created, ...prev]);
       setShowPqrsForm(false);

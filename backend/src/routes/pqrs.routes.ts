@@ -1,10 +1,12 @@
 import { Router } from "express";
 import { z } from "zod";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { requireAuth, requireAdminOrJuridico } from "../middleware/auth.middleware";
 import { catchAsync } from "../lib/catchAsync";
 import { createRateLimiter, limitRequests } from "../lib/rateLimit";
 import { sendPqrsUpdateEmail } from "../services/email.service";
+import { signedPrivateUrl } from "../services/storage";
 import { addBusinessDays, PQRS_RESPONSE_DEADLINE_BUSINESS_DAYS } from "../lib/businessDays";
 
 export const pqrsRouter = Router();
@@ -19,12 +21,48 @@ const statusLogInclude = {
   },
 };
 
+type PqrsWithLogs = Prisma.PqrsGetPayload<{ include: typeof statusLogInclude }>;
+
+// Los adjuntos se guardan como claves privadas; al responder se cambian por
+// enlaces firmados que vencen en una hora.
+function withSignedAttachments<T extends PqrsWithLogs>(pqrs: T) {
+  return {
+    ...pqrs,
+    attachmentUrl: signedPrivateUrl(pqrs.attachmentUrl),
+    responseAttachmentUrl: signedPrivateUrl(pqrs.responseAttachmentUrl),
+    statusLogs: pqrs.statusLogs.map((log) => ({ ...log, attachmentUrl: signedPrivateUrl(log.attachmentUrl) })),
+  };
+}
+
+// Lo que ve el cliente: sin los comentarios internos del equipo ni el correo
+// de quien atendió (solo si fue el cliente o la tienda).
+function customerView(pqrs: PqrsWithLogs) {
+  const { respondedById: _respondedBy, ...signed } = withSignedAttachments(pqrs);
+  return {
+    ...signed,
+    statusLogs: signed.statusLogs.map(({ comment: _comment, changedById: _changedById, changedBy, ...log }) => ({
+      ...log,
+      changedBy: { role: changedBy.role },
+    })),
+  };
+}
+
+// Un adjunto solo puede ser un archivo que subió la misma persona como
+// adjunto de PQRS (no uno ajeno ni una dirección cualquiera).
+async function ownAttachment(key: string | undefined, userId: string): Promise<string | null | undefined> {
+  if (!key) return undefined;
+  const file = await prisma.uploadedFile.findUnique({ where: { key } });
+  return file && file.ownerId === userId && file.kind === "pqrs" ? file.key : null;
+}
+
+const INVALID_ATTACHMENT = "El adjunto no es válido: súbelo de nuevo.";
+
 const createPqrsSchema = z.object({
   type: z.enum(["PETICION", "QUEJA", "RECLAMO", "SUGERENCIA"]),
-  subject: z.string().trim().min(1),
-  message: z.string().trim().min(1),
+  subject: z.string().trim().min(1).max(200),
+  message: z.string().trim().min(1).max(5000),
   orderId: z.string().trim().optional(),
-  attachmentUrl: z.string().trim().optional(),
+  attachmentKey: z.string().trim().optional(),
 });
 
 pqrsRouter.post(
@@ -37,22 +75,29 @@ pqrsRouter.post(
       res.status(400).json({ error: parsed.error.flatten() });
       return;
     }
+    const { attachmentKey, ...data } = parsed.data;
 
-    if (parsed.data.orderId) {
+    if (data.orderId) {
       const order = await prisma.order.findFirst({
-        where: { id: parsed.data.orderId, userId: req.user!.userId },
+        where: { id: data.orderId, userId: req.user!.userId },
       });
       if (!order) {
         res.status(404).json({ error: "El pedido indicado no existe o no te pertenece." });
         return;
       }
     }
+    const attachment = await ownAttachment(attachmentKey, req.user!.userId);
+    if (attachment === null) {
+      res.status(400).json({ error: INVALID_ATTACHMENT });
+      return;
+    }
 
     const dueAt = addBusinessDays(new Date(), PQRS_RESPONSE_DEADLINE_BUSINESS_DAYS);
 
     const pqrs = await prisma.pqrs.create({
       data: {
-        ...parsed.data,
+        ...data,
+        attachmentUrl: attachment,
         userId: req.user!.userId,
         dueAt,
         statusLogs: {
@@ -61,7 +106,7 @@ pqrsRouter.post(
       },
       include: statusLogInclude,
     });
-    res.status(201).json(pqrs);
+    res.status(201).json(customerView(pqrs));
   })
 );
 
@@ -74,7 +119,7 @@ pqrsRouter.get(
       orderBy: { createdAt: "desc" },
       include: { order: { select: { id: true } }, ...statusLogInclude },
     });
-    res.json(items);
+    res.json(items.map(customerView));
   })
 );
 
@@ -92,7 +137,7 @@ pqrsRouter.get(
         ...statusLogInclude,
       },
     });
-    res.json(items);
+    res.json(items.map(withSignedAttachments));
   })
 );
 
@@ -139,9 +184,9 @@ async function canRespond(role: string | undefined): Promise<boolean> {
 
 const respondSchema = z.object({
   status: z.enum(["RECIBIDO", "EN_PROCESO", "RESUELTO", "CERRADO"]).optional(),
-  response: z.string().trim().min(1).optional(),
-  comment: z.string().trim().min(1).optional(),
-  responseAttachmentUrl: z.string().trim().optional(),
+  response: z.string().trim().min(1).max(5000).optional(),
+  comment: z.string().trim().min(1).max(2000).optional(),
+  responseAttachmentKey: z.string().trim().optional(),
 });
 
 pqrsRouter.put(
@@ -161,6 +206,11 @@ pqrsRouter.put(
       res.status(400).json({ error: parsed.error.flatten() });
       return;
     }
+    const attachment = await ownAttachment(parsed.data.responseAttachmentKey, req.user!.userId);
+    if (attachment === null) {
+      res.status(400).json({ error: INVALID_ATTACHMENT });
+      return;
+    }
 
     const existing = await prisma.pqrs.findUnique({ where: { id: req.params.id }, include: { user: true } });
     if (!existing) {
@@ -177,7 +227,7 @@ pqrsRouter.put(
         ...(parsed.data.response
           ? {
               response: parsed.data.response,
-              responseAttachmentUrl: parsed.data.responseAttachmentUrl,
+              responseAttachmentUrl: attachment,
               respondedById: req.user!.userId,
               respondedAt: new Date(),
             }
@@ -187,7 +237,7 @@ pqrsRouter.put(
             fromStatus: existing.status,
             toStatus: nextStatus,
             comment: parsed.data.comment,
-            attachmentUrl: parsed.data.responseAttachmentUrl,
+            attachmentUrl: attachment,
             changedById: req.user!.userId,
           },
         },
@@ -202,6 +252,6 @@ pqrsRouter.put(
       response: updated.response,
     });
 
-    res.json(updated);
+    res.json(withSignedAttachments(updated));
   })
 );

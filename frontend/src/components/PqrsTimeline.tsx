@@ -12,8 +12,9 @@ function formatDate(iso: string, locale: "es" | "en") {
   );
 }
 
+// Los adjuntos llegan como enlaces firmados (…/archivo.mp4?exp=…&sig=…).
 function isMedia(url: string) {
-  return /\.(mp4|webm|mov)$/i.test(url) ? "video" : "image";
+  return /\.(mp4|webm|mov)$/i.test(url.split("?")[0]) ? "video" : "image";
 }
 
 function AttachmentPreview({ url, label }: { url: string; label: string }) {
@@ -110,7 +111,7 @@ export function PqrsTimeline({ pqrs, interactive, selectedStatus, onSelectStatus
             <div key={log.id} className="text-sm">
               <p className="text-muted-foreground">
                 <span className="font-semibold text-foreground">{ROLE_LABELS[log.changedBy.role] ?? log.changedBy.role}</span>{" "}
-                ({log.changedBy.email}) — {formatDate(log.changedAt, locale)}
+                {log.changedBy.email ? `(${log.changedBy.email}) ` : ""}— {formatDate(log.changedAt, locale)}
               </p>
               <p className="text-muted-foreground">
                 {log.fromStatus ? (

@@ -129,6 +129,7 @@ model User {
   tokenVersion        Int                   @default(0)
   createdAt           DateTime              @default(now())
   oauthLoginCodes     OAuthLoginCode[]
+  uploadedFiles       UploadedFile[]
   addresses           ShippingAddress[]
   cart                Cart?
   orders              Order[]
@@ -141,6 +142,21 @@ model User {
   orderStatusChanges  OrderStatusLog[]
 
   @@unique([provider, providerId])
+}
+
+// Cada archivo subido: quién lo subió y qué es. Una PQRS solo puede adjuntar
+// archivos que subió la misma persona (no los de otra ni direcciones libres).
+model UploadedFile {
+  key       String   @id
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  // "products" o "pqrs"
+  kind      String
+  mimeType  String
+  sizeBytes Int
+  createdAt DateTime @default(now())
+
+  @@index([ownerId])
 }
 
 // Al volver de Google/Facebook el navegador recibe este código (no el token

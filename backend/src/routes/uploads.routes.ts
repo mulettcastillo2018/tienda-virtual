@@ -1,12 +1,11 @@
-import path from "node:path";
-import crypto from "node:crypto";
-import fs from "node:fs";
 import { Router } from "express";
 import type { NextFunction, Request, Response } from "express";
 import multer from "multer";
+import { prisma } from "../lib/prisma";
 import { requireAuth, requireAdmin } from "../middleware/auth.middleware";
 import { catchAsync } from "../lib/catchAsync";
 import { createRateLimiter, limitRequests } from "../lib/rateLimit";
+import { detectFileType, publicImageUrl, saveUpload, signedPrivateUrl, type UploadKind } from "../services/storage";
 
 export const uploadsRouter = Router();
 
@@ -16,54 +15,14 @@ const attachmentsByUser = createRateLimiter(10, 60 * 60_000);
 const productImagesByUser = createRateLimiter(60, 60 * 60_000);
 const byUser = (req: Request) => req.user!.userId;
 
-const productsDir = path.join(__dirname, "../../uploads/products");
-fs.mkdirSync(productsDir, { recursive: true });
-
-const pqrsDir = path.join(__dirname, "../../uploads/pqrs");
-fs.mkdirSync(pqrsDir, { recursive: true });
-
-const IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
-const PQRS_MIME_TYPES = new Set([...IMAGE_MIME_TYPES, "video/mp4", "video/webm", "video/quicktime"]);
-
-function makeStorage(dir: string) {
-  return multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, dir),
-    filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname).toLowerCase();
-      cb(null, `${crypto.randomUUID()}${ext}`);
-    },
-  });
-}
-
-const uploadProductImage = multer({
-  storage: makeStorage(productsDir),
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    if (!IMAGE_MIME_TYPES.has(file.mimetype)) {
-      cb(new Error("Formato de imagen no soportado. Usa JPG, PNG, WEBP o GIF."));
-      return;
-    }
-    cb(null, true);
-  },
-});
-
-const uploadPqrsAttachment = multer({
-  storage: makeStorage(pqrsDir),
-  limits: { fileSize: 25 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    if (!PQRS_MIME_TYPES.has(file.mimetype)) {
-      cb(new Error("Formato no soportado. Usa JPG, PNG, WEBP, GIF, MP4, WEBM o MOV."));
-      return;
-    }
-    cb(null, true);
-  },
-});
-
-function handleUpload(uploader: ReturnType<typeof multer>) {
+// El archivo queda en memoria para revisar su contenido antes de guardarlo.
+function receiveFile(maxBytes: number) {
+  const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: maxBytes, files: 1 } }).single("file");
   return (req: Request, res: Response, next: NextFunction) => {
-    uploader.single("file")(req, res, (err: unknown) => {
+    upload(req, res, (err: unknown) => {
       if (err) {
-        res.status(400).json({ error: err instanceof Error ? err.message : "No se pudo subir el archivo." });
+        const tooBig = err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE";
+        res.status(400).json({ error: tooBig ? `El archivo supera el máximo de ${maxBytes / 1024 / 1024} MB.` : "No se pudo recibir el archivo." });
         return;
       }
       next();
@@ -71,33 +30,37 @@ function handleUpload(uploader: ReturnType<typeof multer>) {
   };
 }
 
+// Guarda el archivo si su contenido real es de un tipo permitido.
+function storeFile(kind: UploadKind, allowVideo: boolean, invalidMessage: string) {
+  return catchAsync(async (req, res) => {
+    if (!req.file) {
+      res.status(400).json({ error: "No se recibió ningún archivo." });
+      return;
+    }
+    const type = detectFileType(req.file.buffer);
+    if (!type || (type.media === "video" && !allowVideo)) {
+      res.status(400).json({ error: invalidMessage });
+      return;
+    }
+    const key = await saveUpload(kind, req.file.buffer, type);
+    await prisma.uploadedFile.create({ data: { key, ownerId: req.user!.userId, kind, mimeType: type.mime, sizeBytes: req.file.size } });
+    res.status(201).json({ key, url: kind === "products" ? publicImageUrl(key) : signedPrivateUrl(key) });
+  });
+}
+
 uploadsRouter.post(
   "/product-image",
   requireAuth,
   requireAdmin,
   limitRequests(productImagesByUser, byUser, "Demasiadas imágenes subidas en poco tiempo. Espera un momento."),
-  handleUpload(uploadProductImage),
-  catchAsync(async (req, res) => {
-    if (!req.file) {
-      res.status(400).json({ error: "No se recibió ningún archivo." });
-      return;
-    }
-    const url = `${req.protocol}://${req.get("host")}/uploads/products/${req.file.filename}`;
-    res.status(201).json({ url });
-  })
+  receiveFile(5 * 1024 * 1024),
+  storeFile("products", false, "El archivo no es una imagen válida. Usa JPG, PNG, WEBP o GIF.")
 );
 
 uploadsRouter.post(
   "/pqrs-attachment",
   requireAuth,
   limitRequests(attachmentsByUser, byUser, "Ya subiste varios adjuntos en la última hora. Intenta más tarde."),
-  handleUpload(uploadPqrsAttachment),
-  catchAsync(async (req, res) => {
-    if (!req.file) {
-      res.status(400).json({ error: "No se recibió ningún archivo." });
-      return;
-    }
-    const url = `${req.protocol}://${req.get("host")}/uploads/pqrs/${req.file.filename}`;
-    res.status(201).json({ url });
-  })
+  receiveFile(25 * 1024 * 1024),
+  storeFile("pqrs", true, "El archivo no es una imagen o un video válido. Usa JPG, PNG, WEBP, GIF, MP4, WEBM o MOV.")
 );

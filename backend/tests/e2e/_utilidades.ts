@@ -132,5 +132,6 @@ export async function limpiar(c: Creados) {
   await prisma.productDiscountLog.deleteMany({ where: { productId: { in: c.productos } } });
   await prisma.product.deleteMany({ where: { id: { in: c.productos } } });
   await prisma.passwordResetToken.deleteMany({ where: { userId: { in: c.usuarios } } });
+  await prisma.pqrsStatusLog.deleteMany({ where: { changedById: { in: c.usuarios } } });
   await prisma.user.deleteMany({ where: { id: { in: c.usuarios } } });
 }

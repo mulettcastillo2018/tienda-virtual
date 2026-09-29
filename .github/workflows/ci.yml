@@ -1,0 +1,86 @@
+# Integración continua: en cada push a main y en cada pull request se revisa
+# que el backend y el frontend compilen y se corren las pruebas de extremo a
+# extremo contra una base de datos PostgreSQL nueva (nunca la real).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: tienda
+          POSTGRES_PASSWORD: tienda
+          POSTGRES_DB: tienda_ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U tienda"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Valores solo para esta base desechable de pruebas.
+      DATABASE_URL: postgresql://tienda:tienda@localhost:5432/tienda_ci
+      JWT_SECRET: secreto-solo-para-las-pruebas-automaticas
+      WOMPI_PUBLIC_KEY: pub_test_ci
+      WOMPI_INTEGRITY_SECRET: integridad_ci
+      WOMPI_EVENTS_SECRET: eventos_ci
+      SEED_ADMIN_PASSWORD: clave-admin-solo-para-ci
+      FRONTEND_URL: http://localhost:3000
+      BACKEND_URL: http://localhost:4000
+      PORT: "4000"
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - name: Migraciones
+        run: npx prisma migrate deploy
+      - name: Tipos (código y pruebas)
+        run: |
+          npx tsc --noEmit
+          npx tsc -p tests
+      - name: Datos iniciales (categorías, productos de ejemplo)
+        run: npx prisma db seed
+      - name: Arrancar la API
+        run: |
+          npx tsx src/index.ts > api.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://localhost:4000/health && exit 0; sleep 1; done
+          cat api.log; exit 1
+      - name: Pruebas de extremo a extremo
+        run: npm run test:e2e
+      - name: Registro de la API si algo falló
+        if: failure()
+        run: cat api.log
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Tipos
+        run: npx tsc --noEmit
+      - name: Compilación de producción
+        run: npm run build

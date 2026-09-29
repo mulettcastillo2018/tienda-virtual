@@ -6,6 +6,7 @@ import { calculateShippingQuote } from "../services/carrier.service";
 import { sendShippingNotificationEmail } from "../services/email.service";
 import { catchAsync } from "../lib/catchAsync";
 import { getEffectivePrice, isDiscountActive } from "../lib/pricing";
+import { withPublicImages } from "../services/storage";
 import { cancelPendingOrder, lockOrder, paymentDeadline, transitionOrder } from "../services/orderLifecycle";
 
 export const ordersRouter = Router();
@@ -145,6 +146,10 @@ const customerOrderInclude = {
   payments: { orderBy: { createdAt: "desc" as const }, select: { status: true, paymentMethod: true, createdAt: true } },
 };
 
+function withProductImages<T extends { items: { product: { images: string[] } }[] }>(order: T): T {
+  return { ...order, items: order.items.map((item) => ({ ...item, product: withPublicImages(item.product) })) };
+}
+
 ordersRouter.get(
   "/me",
   requireAuth,
@@ -154,7 +159,7 @@ ordersRouter.get(
       orderBy: { createdAt: "desc" },
       include: customerOrderInclude,
     });
-    res.json(orders);
+    res.json(orders.map(withProductImages));
   })
 );
 
@@ -170,7 +175,7 @@ ordersRouter.get(
       res.status(404).json({ error: "Orden no encontrada" });
       return;
     }
-    res.json(order);
+    res.json(withProductImages(order));
   })
 );
 

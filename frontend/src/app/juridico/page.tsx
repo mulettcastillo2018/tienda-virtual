@@ -58,10 +58,10 @@ export default function JuridicoPqrsPage() {
     setError(null);
     setSaving(true);
     try {
-      let responseAttachmentUrl: string | undefined;
+      let responseAttachmentKey: string | undefined;
       if (attachment) {
-        const { url } = await uploadFile<{ url: string }>("/uploads/pqrs-attachment", attachment, token);
-        responseAttachmentUrl = url;
+        const { key } = await uploadFile<{ key: string }>("/uploads/pqrs-attachment", attachment, token);
+        responseAttachmentKey = key;
       }
 
       await apiFetch(`/pqrs/${id}`, {
@@ -71,7 +71,7 @@ export default function JuridicoPqrsPage() {
           status: draftStatus,
           ...(response ? { response } : {}),
           ...(comment ? { comment } : {}),
-          ...(responseAttachmentUrl ? { responseAttachmentUrl } : {}),
+          ...(responseAttachmentKey ? { responseAttachmentKey } : {}),
         }),
       });
       setOpenId(null);

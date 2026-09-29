@@ -134,7 +134,8 @@ export interface PqrsStatusLog {
   comment: string | null;
   attachmentUrl: string | null;
   changedAt: string;
-  changedBy: { id: string; email: string; role: UserRole };
+  // El cliente solo recibe el rol de quien hizo el cambio.
+  changedBy: { id?: string; email?: string; role: UserRole };
 }
 
 export interface Pqrs {

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { requireAuth, requireAdmin, isAdminRequest } from "../middleware/auth.middleware";
 import { catchAsync } from "../lib/catchAsync";
+import { toStoredImage, withPublicImages } from "../services/storage";
 
 export const productsRouter = Router();
 
@@ -54,7 +55,7 @@ productsRouter.get(
       prisma.product.count({ where }),
     ]);
 
-    res.json({ items, total, page, pageSize });
+    res.json({ items: items.map(withPublicImages), total, page, pageSize });
   })
 );
 
@@ -94,7 +95,7 @@ productsRouter.get(
       res.status(404).json({ error: "Producto no encontrado" });
       return;
     }
-    res.json(product);
+    res.json(withPublicImages(product));
   })
 );
 
@@ -107,7 +108,19 @@ const productSchema = z.object({
   brand: z.string().trim().min(1).nullable().optional(),
   stock: z.number().int().min(0),
   categoryId: z.string().min(1),
-  images: z.array(z.string().trim().min(1)).length(4, "Se requieren exactamente 4 imágenes"),
+  // Se guardan como ruta relativa si son de este servidor (ver storage.ts).
+  images: z
+    .array(
+      z.string().transform((value, ctx) => {
+        const stored = toStoredImage(value);
+        if (!stored) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Imagen no válida: súbela desde el panel o usa una dirección https." });
+          return z.NEVER;
+        }
+        return stored;
+      })
+    )
+    .length(4, "Se requieren exactamente 4 imágenes"),
   weightInGrams: z.number().int().positive(),
   widthCm: z.number().positive(),
   heightCm: z.number().positive(),
@@ -178,7 +191,7 @@ productsRouter.post(
       if (Object.keys(discountFields).length === 0) return created;
       return tx.product.update({ where: { id: created.id }, data: discountFields });
     });
-    res.status(201).json(product);
+    res.status(201).json(withPublicImages(product));
   })
 );
 
@@ -199,7 +212,7 @@ productsRouter.put(
         data: { ...stripDiscountDuration(parsed.data), ...discountFields },
       });
     });
-    res.json(product);
+    res.json(withPublicImages(product));
   })
 );
 

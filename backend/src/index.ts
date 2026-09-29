@@ -20,6 +20,7 @@ import { uploadsRouter } from "./routes/uploads.routes";
 import { pqrsRouter } from "./routes/pqrs.routes";
 import { oauthRouter } from "./routes/oauth.routes";
 import { reviewsRouter } from "./routes/reviews.routes";
+import { filesRouter } from "./routes/files.routes";
 import { startOrderExpiryJob } from "./services/payments.service";
 
 const app = express();
@@ -81,6 +82,7 @@ app.use("/social-links", socialLinksRouter);
 app.use("/uploads", uploadsRouter);
 app.use("/pqrs", pqrsRouter);
 app.use("/store-reviews", reviewsRouter);
+app.use("/files", filesRouter);
 
 // Manejador de errores global: cualquier error no atrapado en las rutas
 // (incluida una caída de la base de datos) termina aquí en vez de tumbar

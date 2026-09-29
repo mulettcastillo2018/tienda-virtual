@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { requireAuth } from "../middleware/auth.middleware";
 import { catchAsync } from "../lib/catchAsync";
+import { withPublicImages } from "../services/storage";
 
 export const cartRouter = Router();
 
@@ -21,7 +22,7 @@ cartRouter.get(
       where: { cartId: cart.id },
       include: { product: true },
     });
-    res.json({ id: cart.id, items });
+    res.json({ id: cart.id, items: items.map((item) => ({ ...item, product: withPublicImages(item.product) })) });
   })
 );
 
