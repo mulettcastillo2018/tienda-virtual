@@ -51,7 +51,7 @@ export function WompiButton({ orderId }: { orderId: string }) {
         if (window.location.protocol === "https:") {
           script.setAttribute(
             "data-redirect-url",
-            `${window.location.origin}/checkout/success?orderId=${orderId}`
+            `${window.location.origin}/checkout/result?orderId=${orderId}`
           );
         }
         form.appendChild(script);

@@ -405,6 +405,20 @@ export default function AccountPage() {
                             {t("account.shippingCost", { amount: formatCOP(order.shippingCost) })}
                           </p>
                           <p className="mt-1 text-sm font-bold">{t("account.total", { amount: formatCOP(order.totalAmount) })}</p>
+                          {order.status === "PENDING" ? (
+                            <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg bg-accent/5 p-3 text-sm">
+                              {order.expiresAt ? (
+                                <span className="text-muted-foreground">
+                                  {t("account.payBefore", {
+                                    time: new Intl.DateTimeFormat(locale === "en" ? "en-US" : "es-CO", { dateStyle: "medium", timeStyle: "short" }).format(new Date(order.expiresAt)),
+                                  })}
+                                </span>
+                              ) : null}
+                              <Link href={`/checkout/result?orderId=${order.id}`} className="btn-primary rounded-full px-4 py-1.5 text-sm">
+                                {t("account.payNow")}
+                              </Link>
+                            </div>
+                          ) : null}
                           {order.trackingNumber ? (
                             <p className="mt-2 text-sm text-muted-foreground">
                               {t("account.shippedBy", { carrier: order.carrier ?? "", tracking: order.trackingNumber })}

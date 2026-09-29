@@ -20,6 +20,7 @@ import { uploadsRouter } from "./routes/uploads.routes";
 import { pqrsRouter } from "./routes/pqrs.routes";
 import { oauthRouter } from "./routes/oauth.routes";
 import { reviewsRouter } from "./routes/reviews.routes";
+import { startOrderExpiryJob } from "./services/payments.service";
 
 const app = express();
 const port = process.env.PORT ?? 4000;
@@ -70,4 +71,6 @@ process.on("unhandledRejection", (reason) => {
 
 app.listen(port, () => {
   console.log(`API escuchando en http://localhost:${port}`);
+  // Cancela los pedidos que no se pagaron a tiempo y libera su inventario.
+  startOrderExpiryJob();
 });

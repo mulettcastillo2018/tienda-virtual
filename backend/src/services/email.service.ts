@@ -28,11 +28,18 @@ function formatCOP(amount: number): string {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" }).format(amount);
 }
 
+// El dominio .test está reservado y nunca recibe correo (lo usan las cuentas
+// de prueba): no se gasta un envío en él.
+function isUndeliverable(toEmail: string): boolean {
+  return toEmail.toLowerCase().endsWith(".test");
+}
+
 export async function sendOrderConfirmationEmail(
   toEmail: string,
   order: OrderForEmail,
   payment: PaymentDetailsForEmail
 ) {
+  if (isUndeliverable(toEmail)) return;
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     console.warn("RESEND_API_KEY no configurado — se omite el envío del correo de confirmación.");
@@ -76,6 +83,7 @@ export async function sendShippingNotificationEmail(
   carrier: string,
   trackingNumber: string
 ) {
+  if (isUndeliverable(toEmail)) return;
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     console.warn("RESEND_API_KEY no configurado — se omite el envío del correo de despacho.");
@@ -94,6 +102,7 @@ export async function sendShippingNotificationEmail(
 }
 
 export async function sendPasswordResetEmail(toEmail: string, resetUrl: string) {
+  if (isUndeliverable(toEmail)) return;
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     console.warn("RESEND_API_KEY no configurado — se omite el envío del correo de reseteo.");
@@ -122,6 +131,7 @@ export async function sendPqrsUpdateEmail(
   toEmail: string,
   pqrs: { id: string; subject: string; status: string; response: string | null }
 ) {
+  if (isUndeliverable(toEmail)) return;
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     console.warn("RESEND_API_KEY no configurado — se omite el envío del correo de PQRS.");

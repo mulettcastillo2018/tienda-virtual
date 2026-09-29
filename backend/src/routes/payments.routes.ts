@@ -1,15 +1,21 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma";
 import { requireAuth } from "../middleware/auth.middleware";
-import {
-  generateIntegritySignature,
-  generateOrderReference,
-  verifyWebhookChecksum,
-} from "../services/wompi.service";
-import { sendOrderConfirmationEmail } from "../services/email.service";
+import { generateIntegritySignature, generateOrderReference, verifyWebhookChecksum, type WompiTransaction } from "../services/wompi.service";
+import { applyWompiTransaction, syncOrderPayments } from "../services/payments.service";
+import { cancelPendingOrder } from "../services/orderLifecycle";
 import { catchAsync } from "../lib/catchAsync";
 
 export const paymentsRouter = Router();
+
+// Si la página de pago se abre dos veces seguidas (recarga, doble montaje),
+// se reutiliza el intento recién creado en vez de abrir otro.
+const REUSE_ATTEMPT_MS = 2 * 60_000;
+
+function notPayableMessage(status: string): string {
+  if (status === "CANCELLED") return "Este pedido se canceló. Los productos volvieron a tu carrito.";
+  return "Este pedido ya está pagado.";
+}
 
 paymentsRouter.post(
   "/wompi/initiate/:orderId",
@@ -22,59 +28,88 @@ paymentsRouter.post(
       res.status(404).json({ error: "Orden no encontrada" });
       return;
     }
+    if (order.status === "PENDING" && order.expiresAt && order.expiresAt < new Date()) {
+      await cancelPendingOrder(order.id, "Venció el plazo para pagar");
+      res.status(409).json({ error: "Venció el plazo para pagar este pedido. Los productos volvieron a tu carrito." });
+      return;
+    }
     if (order.status !== "PENDING") {
-      res.status(409).json({ error: "La orden ya no está pendiente de pago" });
+      res.status(409).json({ error: notPayableMessage(order.status) });
       return;
     }
 
-    const reference = generateOrderReference(order.id);
     const amountInCents = order.totalAmount * 100;
-    const signature = generateIntegritySignature({
-      reference,
-      amountInCents,
-      currency: "COP",
-    });
-
-    await prisma.payment.create({
-      data: {
-        orderId: order.id,
-        status: "PENDING",
-        paymentReference: reference,
-      },
+    const payment = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${order.id} FOR UPDATE`;
+      const recent = await tx.payment.findFirst({
+        where: { orderId: order.id, status: "PENDING", providerTransactionId: null, createdAt: { gte: new Date(Date.now() - REUSE_ATTEMPT_MS) } },
+        orderBy: { createdAt: "desc" },
+      });
+      if (recent) return recent;
+      return tx.payment.create({
+        data: { orderId: order.id, status: "PENDING", paymentReference: generateOrderReference(order.id), amountInCents },
+      });
     });
 
     res.json({
-      reference,
+      reference: payment.paymentReference,
       amountInCents,
       currency: "COP",
-      signature,
+      signature: generateIntegritySignature({ reference: payment.paymentReference, amountInCents, currency: "COP" }),
       publicKey: process.env.WOMPI_PUBLIC_KEY,
+      expiresAt: order.expiresAt,
     });
   })
 );
 
-interface WompiWebhookEvent {
-  event: string;
-  data: {
-    transaction: {
-      id: string;
-      reference: string;
-      status: "APPROVED" | "DECLINED" | "VOIDED" | "ERROR";
-      payment_method_type?: string;
-      amount_in_cents: number;
-    };
-  };
-  signature: { properties: string[]; checksum: string };
-  timestamp: number;
-}
+// Estado de un pedido para la página de resultado del pago: antes consulta a
+// Wompi los intentos abiertos (por si el webhook no ha llegado).
+paymentsRouter.post(
+  "/wompi/sync/:orderId",
+  requireAuth,
+  catchAsync(async (req, res) => {
+    const isAdmin = req.user!.role === "ADMIN";
+    const order = await prisma.order.findFirst({
+      where: { id: req.params.orderId, ...(isAdmin ? {} : { userId: req.user!.userId }) },
+      select: { id: true },
+    });
+    if (!order) {
+      res.status(404).json({ error: "Orden no encontrada" });
+      return;
+    }
+
+    let pendingAtWompi = false;
+    try {
+      pendingAtWompi = (await syncOrderPayments(order.id)).pendingAtWompi;
+    } catch (err) {
+      console.error(`No se pudo consultar Wompi para el pedido ${order.id}:`, err);
+    }
+
+    const current = await prisma.order.findUniqueOrThrow({
+      where: { id: order.id },
+      select: {
+        id: true,
+        status: true,
+        totalAmount: true,
+        shippingCost: true,
+        expiresAt: true,
+        needsReview: true,
+        payments: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true, paymentMethod: true, updatedAt: true } },
+      },
+    });
+    const { payments, ...rest } = current;
+    res.json({ ...rest, lastPayment: payments[0] ?? null, pendingAtWompi });
+  })
+);
 
 // Ruta pública — Wompi la invoca directamente. El body llega como Buffer crudo
 // (ver app.use(express.raw(...)) en src/index.ts) para poder validar la firma
-// exactamente sobre lo que Wompi envió.
+// exactamente sobre lo que Wompi envió. Todo lo que no sea un error del
+// servidor responde 200: Wompi reintenta los demás códigos.
 paymentsRouter.post(
   "/wompi/webhook",
   catchAsync(async (req, res) => {
-    let event: WompiWebhookEvent;
+    let event: { event?: string; data?: { transaction?: WompiTransaction }; signature?: { properties?: unknown; checksum?: unknown }; timestamp?: unknown };
     try {
       event = JSON.parse(req.body.toString("utf8"));
     } catch {
@@ -82,82 +117,18 @@ paymentsRouter.post(
       return;
     }
 
-    const valid = verifyWebhookChecksum({
-      signature: event.signature,
-      data: event.data as unknown as Record<string, unknown>,
-      timestamp: event.timestamp,
-    });
-
-    if (!valid) {
+    if (!verifyWebhookChecksum(event as Parameters<typeof verifyWebhookChecksum>[0])) {
       res.status(401).json({ error: "Firma inválida" });
       return;
     }
 
-    const { transaction } = event.data;
-
-    const payment = await prisma.payment.findUnique({
-      where: { paymentReference: transaction.reference },
-      include: {
-        order: {
-          include: { items: { include: { product: true } }, shippingAddress: true, user: true },
-        },
-      },
-    });
-
-    if (!payment) {
-      res.status(404).json({ error: "Pago no encontrado" });
+    const transaction = event.data?.transaction;
+    if (event.event !== "transaction.updated" || !transaction?.reference) {
+      res.json({ received: true, ignored: true });
       return;
     }
 
-    await prisma.payment.update({
-      where: { id: payment.id },
-      data: {
-        status: transaction.status,
-        providerTransactionId: transaction.id,
-        paymentMethod: transaction.payment_method_type,
-        rawResponse: event as unknown as object,
-      },
-    });
-
-    if (transaction.status === "APPROVED") {
-      await prisma.order.update({ where: { id: payment.orderId }, data: { status: "PAID" } });
-
-      await sendOrderConfirmationEmail(
-        payment.order.user.email,
-        {
-          id: payment.order.id,
-          totalAmount: payment.order.totalAmount,
-          shippingCost: payment.order.shippingCost,
-          items: payment.order.items.map((item) => ({
-            productName: item.product.name,
-            quantity: item.quantity,
-            priceAtPurchase: item.priceAtPurchase,
-          })),
-          shippingAddress: payment.order.shippingAddress,
-        },
-        {
-          providerTransactionId: transaction.id,
-          paymentMethod: transaction.payment_method_type ?? null,
-        }
-      );
-    } else if (transaction.status === "DECLINED" || transaction.status === "VOIDED") {
-      await prisma.$transaction(async (tx) => {
-        const order = await tx.order.findUniqueOrThrow({
-          where: { id: payment.orderId },
-          include: { items: true },
-        });
-
-        for (const item of order.items) {
-          await tx.product.update({
-            where: { id: item.productId },
-            data: { stock: { increment: item.quantity } },
-          });
-        }
-
-        await tx.order.update({ where: { id: order.id }, data: { status: "CANCELLED" } });
-      });
-    }
-
-    res.json({ received: true });
+    const result = await applyWompiTransaction(transaction, event);
+    res.json({ received: true, result });
   })
 );

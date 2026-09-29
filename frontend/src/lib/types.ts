@@ -92,6 +92,13 @@ export interface Order {
   trackingNumber: string | null;
   status: OrderStatus;
   createdAt: string;
+  // Hasta cuándo se puede pagar un pedido pendiente.
+  expiresAt: string | null;
+  // Algo del pago quedó para que un administrador lo revise.
+  needsReview?: boolean;
+  reviewNote?: string | null;
+  payments?: { status: string; paymentMethod: string | null; createdAt: string; providerTransactionId?: string | null }[];
+  user?: { id: string; email: string };
   items: {
     id: string;
     productId: string;
@@ -99,7 +106,7 @@ export interface Order {
     priceAtPurchase: number;
     product?: Product;
     discountLogId: string | null;
-    discountLog?: { discountPercentage: number; createdBy: { email: string } } | null;
+    discountLog?: { discountPercentage: number } | null;
   }[];
   shippingAddress?: ShippingAddress;
 }

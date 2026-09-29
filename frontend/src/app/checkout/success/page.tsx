@@ -1,34 +1,24 @@
 "use client";
 
-import { Suspense } from "react";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { CheckCircle2 } from "lucide-react";
-import { useT } from "@/lib/i18n";
+import { Suspense, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
-function SuccessContent() {
+// Dirección anterior de retorno de Wompi: los pagos iniciados antes del
+// cambio todavía pueden volver aquí. El resultado real está en /checkout/result.
+function RedirectToResult() {
   const params = useSearchParams();
-  const orderId = params.get("orderId") ?? params.get("id-transaccion");
-  const t = useT();
-
-  return (
-    <div className="mx-auto max-w-md px-4 py-20 text-center sm:px-6">
-      <CheckCircle2 className="mx-auto text-accent" size={56} />
-      <h1 className="mt-4 text-2xl font-bold">{t("checkoutSuccess.title")}</h1>
-      <p className="mt-2 text-muted-foreground">
-        {t("checkoutSuccess.body", { order: orderId ? ` (#${orderId})` : "" })}
-      </p>
-      <Link href="/" className="mt-6 inline-block font-semibold text-accent">
-        {t("checkoutSuccess.backToCatalog")}
-      </Link>
-    </div>
-  );
+  const router = useRouter();
+  useEffect(() => {
+    const orderId = params.get("orderId");
+    router.replace(orderId ? `/checkout/result?orderId=${encodeURIComponent(orderId)}` : "/account");
+  }, [params, router]);
+  return null;
 }
 
 export default function CheckoutSuccessPage() {
   return (
     <Suspense>
-      <SuccessContent />
+      <RedirectToResult />
     </Suspense>
   );
 }

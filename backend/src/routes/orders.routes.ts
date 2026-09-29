@@ -6,6 +6,7 @@ import { calculateShippingQuote } from "../services/carrier.service";
 import { sendShippingNotificationEmail } from "../services/email.service";
 import { catchAsync } from "../lib/catchAsync";
 import { getEffectivePrice, isDiscountActive } from "../lib/pricing";
+import { cancelPendingOrder, lockOrder, paymentDeadline, transitionOrder } from "../services/orderLifecycle";
 
 export const ordersRouter = Router();
 
@@ -106,6 +107,8 @@ ordersRouter.post(
             totalAmount,
             shippingCost: shippingQuote.cost,
             carrier: shippingQuote.carrier,
+            expiresAt: paymentDeadline(),
+            statusLogs: { create: { toStatus: "PENDING", reason: "Pedido creado", changedById: userId } },
             items: {
               create: cart.items.map((item) => ({
                 productId: item.productId,
@@ -134,6 +137,14 @@ ordersRouter.post(
   })
 );
 
+// Lo que ve el cliente de su pedido: sin el correo de quien creó el
+// descuento ni la respuesta completa de Wompi.
+const customerOrderInclude = {
+  items: { include: { product: true, discountLog: { select: { discountPercentage: true } } } },
+  shippingAddress: true,
+  payments: { orderBy: { createdAt: "desc" as const }, select: { status: true, paymentMethod: true, createdAt: true } },
+};
+
 ordersRouter.get(
   "/me",
   requireAuth,
@@ -141,11 +152,7 @@ ordersRouter.get(
     const orders = await prisma.order.findMany({
       where: { userId: req.user!.userId },
       orderBy: { createdAt: "desc" },
-      include: {
-        items: { include: { product: true, discountLog: { include: { createdBy: { select: { email: true } } } } } },
-        shippingAddress: true,
-        payments: true,
-      },
+      include: customerOrderInclude,
     });
     res.json(orders);
   })
@@ -157,17 +164,32 @@ ordersRouter.get(
   catchAsync(async (req, res) => {
     const order = await prisma.order.findFirst({
       where: { id: req.params.id, userId: req.user!.userId },
-      include: {
-        items: { include: { product: true, discountLog: { include: { createdBy: { select: { email: true } } } } } },
-        shippingAddress: true,
-        payments: true,
-      },
+      include: customerOrderInclude,
     });
     if (!order) {
       res.status(404).json({ error: "Orden no encontrada" });
       return;
     }
     res.json(order);
+  })
+);
+
+// El cliente cancela un pedido que todavía no pagó: el inventario se libera
+// y los productos vuelven a su carrito.
+ordersRouter.post(
+  "/:id/cancel",
+  requireAuth,
+  catchAsync(async (req, res) => {
+    const order = await prisma.order.findFirst({ where: { id: req.params.id, userId: req.user!.userId }, select: { id: true, status: true } });
+    if (!order) {
+      res.status(404).json({ error: "Orden no encontrada" });
+      return;
+    }
+    if (!(await cancelPendingOrder(order.id, "Cancelado por el cliente", req.user!.userId))) {
+      res.status(409).json({ error: "Solo se puede cancelar un pedido que todavía no se ha pagado." });
+      return;
+    }
+    res.json({ ok: true });
   })
 );
 
@@ -189,6 +211,7 @@ ordersRouter.get(
         items: true,
         shippingAddress: true,
         user: { select: { id: true, email: true, role: true } },
+        payments: { orderBy: { createdAt: "desc" }, select: { status: true, paymentMethod: true, providerTransactionId: true, createdAt: true } },
       },
     });
     res.json(orders);
@@ -206,13 +229,32 @@ ordersRouter.post(
       return;
     }
 
-    const order = await prisma.order.update({
+    // Solo se despacha lo que está pagado.
+    const dispatched = await prisma.$transaction(async (tx) => {
+      const current = await lockOrder(tx, req.params.id);
+      if (!current) return null;
+      const ok = await transitionOrder(
+        tx,
+        current.id,
+        ["PAID", "PROCESSING"],
+        "SHIPPED",
+        `Despachado con ${parsed.data.carrier}, guía ${parsed.data.trackingNumber}`,
+        req.user!.userId
+      );
+      if (!ok) return { status: current.status };
+      await tx.order.update({ where: { id: current.id }, data: { carrier: parsed.data.carrier, trackingNumber: parsed.data.trackingNumber } });
+      return { status: "SHIPPED" as const };
+    });
+    if (!dispatched) {
+      res.status(404).json({ error: "Orden no encontrada" });
+      return;
+    }
+    if (dispatched.status !== "SHIPPED") {
+      res.status(409).json({ error: "Solo se pueden despachar pedidos pagados." });
+      return;
+    }
+    const order = await prisma.order.findUniqueOrThrow({
       where: { id: req.params.id },
-      data: {
-        status: "SHIPPED",
-        carrier: parsed.data.carrier,
-        trackingNumber: parsed.data.trackingNumber,
-      },
       include: { user: { select: { id: true, email: true, role: true } } },
     });
 
@@ -224,5 +266,38 @@ ordersRouter.post(
     );
 
     res.json(order);
+  })
+);
+
+const reviewSchema = z.object({ note: z.string().trim().min(3).max(500) });
+
+// El administrador deja constancia de cómo resolvió un pedido marcado para
+// revisión (p. ej. "reembolsado en Wompi el 29/09") y quita la marca.
+ordersRouter.post(
+  "/:id/review-resolved",
+  requireAuth,
+  requireAdmin,
+  catchAsync(async (req, res) => {
+    const parsed = reviewSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Escribe cómo se resolvió (mínimo 3 caracteres)." });
+      return;
+    }
+    const order = await prisma.order.findUnique({ where: { id: req.params.id }, select: { id: true, status: true, needsReview: true } });
+    if (!order) {
+      res.status(404).json({ error: "Orden no encontrada" });
+      return;
+    }
+    if (!order.needsReview) {
+      res.status(409).json({ error: "Este pedido no tiene nada pendiente de revisión." });
+      return;
+    }
+    await prisma.$transaction([
+      prisma.order.update({ where: { id: order.id }, data: { needsReview: false } }),
+      prisma.orderStatusLog.create({
+        data: { orderId: order.id, fromStatus: order.status, toStatus: order.status, reason: `Revisión resuelta: ${parsed.data.note}`, changedById: req.user!.userId },
+      }),
+    ]);
+    res.json({ ok: true });
   })
 );

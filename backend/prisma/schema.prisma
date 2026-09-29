@@ -133,6 +133,7 @@ model User {
   pqrsStatusChanges   PqrsStatusLog[]
   discountLogsCreated ProductDiscountLog[]
   storeReviews        StoreReview[]
+  orderStatusChanges  OrderStatusLog[]
 
   @@unique([provider, providerId])
 }
@@ -249,10 +250,37 @@ model Order {
   trackingNumber    String?
   status            OrderStatus     @default(PENDING)
   createdAt         DateTime        @default(now())
+  // Hasta cuándo se puede pagar un pedido PENDING. Después se cancela solo y
+  // el inventario reservado vuelve a estar disponible.
+  expiresAt         DateTime?
+  // Algo en el pago necesita que una persona lo revise (p. ej. un pago
+  // aprobado sobre un pedido ya pagado, que hay que reembolsar).
+  needsReview       Boolean         @default(false)
+  reviewNote        String?
   items             OrderItem[]
   payments          Payment[]
+  statusLogs        OrderStatusLog[]
   pqrsList          Pqrs[]
   storeReview       StoreReview?
+
+  @@index([userId])
+  @@index([status, expiresAt])
+}
+
+// Cada cambio de estado de un pedido: quién (null = el sistema: pago,
+// vencimiento), de qué estado a cuál y por qué.
+model OrderStatusLog {
+  id          String       @id @default(cuid())
+  orderId     String
+  order       Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fromStatus  OrderStatus?
+  toStatus    OrderStatus
+  reason      String?
+  changedById String?
+  changedBy   User?        @relation(fields: [changedById], references: [id])
+  changedAt   DateTime     @default(now())
+
+  @@index([orderId])
 }
 
 // Reseña de la experiencia de compra/tienda en general. Solo puede dejarse
@@ -282,15 +310,23 @@ model OrderItem {
   discountLog     ProductDiscountLog? @relation(fields: [discountLogId], references: [id])
 }
 
+// Un intento de pago (una referencia de Wompi). Un pedido puede tener varios:
+// si el primero se rechaza, el cliente reintenta con otro medio.
 model Payment {
   id                    String          @id @default(cuid())
   orderId               String
   order                 Order           @relation(fields: [orderId], references: [id])
   provider              PaymentProvider @default(WOMPI)
-  providerTransactionId String?
+  providerTransactionId String?         @unique
   paymentMethod         String?
+  // PENDING (sin transacción todavía o en trámite), APPROVED, DECLINED,
+  // VOIDED o ERROR, tal como lo informa Wompi.
   status                String
+  amountInCents         Int?
   paymentReference      String          @unique
   rawResponse           Json?
   createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @default(now()) @updatedAt
+
+  @@index([orderId])
 }

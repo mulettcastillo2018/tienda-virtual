@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useAuthStore } from "@/store/auth.store";
 import { useCartStore } from "@/store/cart.store";
-import { WompiButton } from "@/components/WompiButton";
 import { AddressForm, type AddressFormValues } from "@/components/AddressForm";
 import { getEffectivePrice } from "@/lib/pricing";
 import { useT } from "@/lib/i18n";
@@ -15,7 +14,7 @@ function formatCOP(amount: number) {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" }).format(amount);
 }
 
-type Step = "address" | "summary" | "pay";
+type Step = "address" | "summary";
 
 export default function CheckoutPage() {
   const [step, setStep] = useState<Step>("address");
@@ -24,12 +23,12 @@ export default function CheckoutPage() {
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
   const [address, setAddress] = useState<ShippingAddress | null>(null);
-  const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const token = useAuthStore((state) => state.token);
   const cart = useCartStore((state) => state.cart);
+  const fetchCart = useCartStore((state) => state.fetchCart);
   const router = useRouter();
   const t = useT();
 
@@ -87,8 +86,10 @@ export default function CheckoutPage() {
         token,
         body: JSON.stringify({ shippingAddressId: address.id }),
       });
-      setOrder(created);
-      setStep("pay");
+      // El pedido queda reservado y el carrito vacío: el pago (y sus
+      // reintentos) se hace en la página de resultado.
+      fetchCart();
+      router.push(`/checkout/result?orderId=${created.id}`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("checkout.createOrderError"));
     } finally {
@@ -102,7 +103,7 @@ export default function CheckoutPage() {
     <div className="mx-auto max-w-xl px-4 py-10 sm:px-6">
       <h1 className="text-2xl font-bold">{t("checkout.title")}</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        {t("checkout.step", { n: step === "address" ? "1" : step === "summary" ? "2" : "3" })}
+        {t("checkout.step", { n: step === "address" ? "1" : "2" })}
       </p>
 
       {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
@@ -192,19 +193,6 @@ export default function CheckoutPage() {
         </div>
       ) : null}
 
-      {step === "pay" && order ? (
-        <div className="mt-6 space-y-4">
-          <div className="flex items-center justify-between border-t border-border pt-4">
-            <span className="text-muted-foreground">{t("checkout.shipping")}</span>
-            <span>{formatCOP(order.shippingCost)}</span>
-          </div>
-          <div className="flex items-center justify-between text-lg font-bold">
-            <span>{t("checkout.total")}</span>
-            <span>{formatCOP(order.totalAmount)}</span>
-          </div>
-          <WompiButton orderId={order.id} />
-        </div>
-      ) : null}
     </div>
   );
 }
