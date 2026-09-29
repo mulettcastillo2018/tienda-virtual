@@ -4,8 +4,12 @@ import "dotenv/config";
 import { prisma } from "../../src/lib/prisma";
 import { comprobarEntorno, totalFallos } from "./_utilidades";
 import { probarPagos } from "./pagos.e2e";
+import { probarCuentas } from "./cuentas.e2e";
 
-const PRUEBAS: [string, () => Promise<void>][] = [["Pagos con Wompi", probarPagos]];
+const PRUEBAS: [string, () => Promise<void>][] = [
+  ["Pagos con Wompi", probarPagos],
+  ["Seguridad de las cuentas", probarCuentas],
+];
 
 async function main() {
   comprobarEntorno();

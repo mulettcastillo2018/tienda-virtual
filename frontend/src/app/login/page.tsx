@@ -35,9 +35,11 @@ export default function LoginPage() {
       setRemember(false);
     }
 
-    const oauthError = new URLSearchParams(window.location.search).get("oauthError");
-    if (oauthError) {
-      setError(oauthError);
+    // Motivo de un inicio social fallido o de una sesión que el servidor cerró.
+    const params = new URLSearchParams(window.location.search);
+    const notice = params.get("oauthError") ?? params.get("aviso");
+    if (notice) {
+      setError(notice);
       router.replace("/login");
     }
 

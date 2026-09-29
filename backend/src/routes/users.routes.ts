@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { requireAuth, requireAdmin } from "../middleware/auth.middleware";
 import { catchAsync } from "../lib/catchAsync";
+import { forgetUserState } from "../lib/userState";
 
 export const usersRouter = Router();
 
@@ -48,11 +49,13 @@ usersRouter.put(
       return;
     }
 
+    // Con otro rol, sus sesiones abiertas dejan de servir de inmediato.
     const user = await prisma.user.update({
       where: { id: req.params.id },
-      data: { role: parsed.data.role },
+      data: { role: parsed.data.role, tokenVersion: { increment: 1 } },
       select: { id: true, email: true, role: true, createdAt: true },
     });
+    forgetUserState(user.id);
     res.json(user);
   })
 );
@@ -77,11 +80,13 @@ usersRouter.put(
       return;
     }
 
+    // Desactivar cierra sus sesiones abiertas de inmediato.
     const user = await prisma.user.update({
       where: { id: req.params.id },
-      data: { isActive: parsed.data.isActive },
+      data: { isActive: parsed.data.isActive, ...(parsed.data.isActive ? {} : { tokenVersion: { increment: 1 } }) },
       select: { id: true, email: true, role: true, isActive: true },
     });
+    forgetUserState(user.id);
     res.json(user);
   })
 );
@@ -101,8 +106,10 @@ usersRouter.put(
       return;
     }
 
+    // La contraseña nueva cierra las sesiones que tenía abiertas.
     const passwordHash = await bcrypt.hash(parsed.data.newPassword, 10);
-    await prisma.user.update({ where: { id: req.params.id }, data: { passwordHash } });
+    await prisma.user.update({ where: { id: req.params.id }, data: { passwordHash, tokenVersion: { increment: 1 } } });
+    forgetUserState(req.params.id);
     res.json({ ok: true });
   })
 );

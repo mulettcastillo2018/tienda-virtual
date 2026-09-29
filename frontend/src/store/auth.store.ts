@@ -22,6 +22,9 @@ interface AuthState {
   token: string | null;
   user: AuthUser | null;
   setAuth: (token: string, user: AuthUser, remember?: boolean) => void;
+  // Reemplaza el token de la sesión actual (p. ej. tras cambiar la contraseña,
+  // que invalida los anteriores).
+  setToken: (token: string) => void;
   logout: () => void;
 }
 
@@ -36,6 +39,7 @@ export const useAuthStore = create<AuthState>()(
         }
         set({ token, user });
       },
+      setToken: (token) => set({ token }),
       logout: () => set({ token: null, user: null }),
     }),
     { name: "tienda-auth", storage: createJSONStorage(() => dynamicStorage) }

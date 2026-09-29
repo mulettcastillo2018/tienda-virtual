@@ -53,11 +53,15 @@ export interface Creados {
   productos: string[];
 }
 
+// Se crea directo en la base (el registro por la API tiene tope por IP y las
+// pruebas se corren muchas veces seguidas) y se inicia sesión por la API.
 export async function crearCliente(creados: Creados, etiqueta: string) {
   const email = `${etiqueta}_${Date.now()}_${Math.floor(Math.random() * 1000)}@tienda.test`;
-  const r = exigir(await req("POST", "/auth/register", { email, phone: "3001234567", password: CLAVE_PRUEBA }), "Registrar cliente");
-  creados.usuarios.push(r.user.id);
-  return { id: r.user.id as string, token: r.token as string, email };
+  const user = await prisma.user.create({ data: { email, phone: "3001234567", passwordHash: await bcrypt.hash(CLAVE_PRUEBA, 10) } });
+  creados.usuarios.push(user.id);
+  await prisma.cart.create({ data: { userId: user.id } });
+  const r = exigir(await req("POST", "/auth/login", { email, password: CLAVE_PRUEBA }), "Login cliente de prueba");
+  return { id: user.id, token: r.token as string, email };
 }
 
 // Un administrador desechable (no se toca la clave de los administradores reales).

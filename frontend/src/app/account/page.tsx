@@ -22,6 +22,7 @@ function formatDate(iso: string, locale: "es" | "en") {
 export default function AccountPage() {
   const token = useAuthStore((state) => state.token);
   const authUser = useAuthStore((state) => state.user);
+  const setToken = useAuthStore((state) => state.setToken);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [addresses, setAddresses] = useState<ShippingAddress[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -192,11 +193,14 @@ export default function AccountPage() {
     setPasswordError(null);
     setChangingPassword(true);
     try {
-      await apiFetch("/auth/password", {
+      // Cambiar la contraseña cierra las demás sesiones; esta sigue con el
+      // token nuevo que devuelve el servidor.
+      const result = await apiFetch<{ token: string }>("/auth/password", {
         method: "PUT",
         token,
         body: JSON.stringify({ currentPassword, newPassword }),
       });
+      setToken(result.token);
       form.reset();
       showToast(t("account.passwordUpdatedToast"));
     } catch (err) {

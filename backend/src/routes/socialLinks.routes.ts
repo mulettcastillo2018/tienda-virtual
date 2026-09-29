@@ -1,8 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
-import { requireAuth, requireAdmin } from "../middleware/auth.middleware";
-import { verifyToken } from "../lib/jwt";
+import { requireAuth, requireAdmin, isAdminRequest } from "../middleware/auth.middleware";
 import { catchAsync } from "../lib/catchAsync";
 
 export const socialLinksRouter = Router();
@@ -10,15 +9,7 @@ export const socialLinksRouter = Router();
 socialLinksRouter.get(
   "/",
   catchAsync(async (req, res) => {
-    let isAdmin = false;
-    const header = req.headers.authorization;
-    if (header?.startsWith("Bearer ")) {
-      try {
-        isAdmin = verifyToken(header.slice(7)).role === "ADMIN";
-      } catch {
-        // token inválido o expirado: se trata como visitante público
-      }
-    }
+    const isAdmin = await isAdminRequest(req);
 
     const links = await prisma.socialLink.findMany({
       where: isAdmin ? {} : { isActive: true },

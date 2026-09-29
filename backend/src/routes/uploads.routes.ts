@@ -6,8 +6,15 @@ import type { NextFunction, Request, Response } from "express";
 import multer from "multer";
 import { requireAuth, requireAdmin } from "../middleware/auth.middleware";
 import { catchAsync } from "../lib/catchAsync";
+import { createRateLimiter, limitRequests } from "../lib/rateLimit";
 
 export const uploadsRouter = Router();
+
+// Topes por usuario: sin ellos, cualquier cliente registrado podría llenar el
+// disco del servidor con adjuntos de 25 MB.
+const attachmentsByUser = createRateLimiter(10, 60 * 60_000);
+const productImagesByUser = createRateLimiter(60, 60 * 60_000);
+const byUser = (req: Request) => req.user!.userId;
 
 const productsDir = path.join(__dirname, "../../uploads/products");
 fs.mkdirSync(productsDir, { recursive: true });
@@ -68,6 +75,7 @@ uploadsRouter.post(
   "/product-image",
   requireAuth,
   requireAdmin,
+  limitRequests(productImagesByUser, byUser, "Demasiadas imágenes subidas en poco tiempo. Espera un momento."),
   handleUpload(uploadProductImage),
   catchAsync(async (req, res) => {
     if (!req.file) {
@@ -82,6 +90,7 @@ uploadsRouter.post(
 uploadsRouter.post(
   "/pqrs-attachment",
   requireAuth,
+  limitRequests(attachmentsByUser, byUser, "Ya subiste varios adjuntos en la última hora. Intenta más tarde."),
   handleUpload(uploadPqrsAttachment),
   catchAsync(async (req, res) => {
     if (!req.file) {

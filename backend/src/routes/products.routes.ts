@@ -1,8 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
-import { requireAuth, requireAdmin } from "../middleware/auth.middleware";
-import { verifyToken } from "../lib/jwt";
+import { requireAuth, requireAdmin, isAdminRequest } from "../middleware/auth.middleware";
 import { catchAsync } from "../lib/catchAsync";
 
 export const productsRouter = Router();
@@ -30,16 +29,7 @@ productsRouter.get(
 
     // Los administradores autenticados también ven productos desactivados,
     // para poder reactivarlos desde el panel; el catálogo público no.
-    let includeInactive = false;
-    const header = req.headers.authorization;
-    if (header?.startsWith("Bearer ")) {
-      try {
-        const payload = verifyToken(header.slice(7));
-        includeInactive = payload.role === "ADMIN";
-      } catch {
-        // token inválido o expirado: se trata como visitante público
-      }
-    }
+    const includeInactive = await isAdminRequest(req);
 
     const where = {
       ...(includeInactive ? {} : { isActive: true }),

@@ -1,7 +1,10 @@
-import { Router } from "express";
-import { prisma } from "../lib/prisma";
-import { signToken } from "../lib/jwt";
+import crypto from "node:crypto";
+import { Router, type Request, type Response } from "express";
+import { z } from "zod";
+import { tokenFor } from "../lib/jwt";
 import { catchAsync } from "../lib/catchAsync";
+import { clientIp, createRateLimiter, limitRequests } from "../lib/rateLimit";
+import { findOrCreateOAuthUser, issueLoginCode, OAuthLoginError, redeemLoginCode } from "../services/oauth.service";
 
 export const oauthRouter = Router();
 
@@ -23,35 +26,66 @@ oauthRouter.get(
   })
 );
 
-// Crea o reutiliza el usuario asociado a una cuenta social, y emite nuestro propio
-// JWT — el resto de la aplicación no necesita saber si alguien entró con
-// correo/contraseña o con Google/Facebook, solo ve el mismo token de siempre.
-async function findOrCreateOAuthUser(provider: "google" | "facebook", providerId: string, email: string) {
-  let user = await prisma.user.findUnique({ where: { provider_providerId: { provider, providerId } } });
-  if (user) return user;
+// --- Protección del ida y vuelta (parámetro state) ---
+// Al salir hacia Google/Facebook se guarda un valor aleatorio en una cookie
+// de este dominio y se envía como `state`; al volver deben coincidir. Así
+// nadie puede hacer que otra persona termine con la sesión iniciada en la
+// cuenta del atacante (CSRF de inicio de sesión).
+const STATE_COOKIE = "oauth_state";
+const cookieOptions = {
+  httpOnly: true,
+  sameSite: "lax" as const,
+  secure: BACKEND_URL.startsWith("https://"),
+  path: "/auth",
+};
 
-  // Si ya existe una cuenta tradicional con ese correo, la vinculamos en vez de
-  // crear un duplicado.
-  const existingByEmail = await prisma.user.findUnique({ where: { email } });
-  if (existingByEmail) {
-    user = await prisma.user.update({
-      where: { id: existingByEmail.id },
-      data: { provider, providerId },
-    });
-    return user;
+function newState(res: Response): string {
+  const state = crypto.randomBytes(24).toString("hex");
+  res.cookie(STATE_COOKIE, state, { ...cookieOptions, maxAge: 10 * 60_000 });
+  return state;
+}
+
+function readCookie(req: Request, name: string): string | null {
+  for (const part of (req.headers.cookie ?? "").split(";")) {
+    const [key, ...value] = part.trim().split("=");
+    if (key === name) return decodeURIComponent(value.join("="));
   }
-
-  user = await prisma.user.create({ data: { email, provider, providerId } });
-  await prisma.cart.create({ data: { userId: user.id } });
-  return user;
+  return null;
 }
 
-function redirectWithToken(res: import("express").Response, token: string) {
-  res.redirect(`${FRONTEND_URL}/oauth-callback?token=${encodeURIComponent(token)}`);
+function stateIsValid(req: Request, res: Response): boolean {
+  const expected = readCookie(req, STATE_COOKIE);
+  const received = typeof req.query.state === "string" ? req.query.state : "";
+  res.clearCookie(STATE_COOKIE, cookieOptions);
+  if (!expected || expected.length !== received.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(received));
 }
 
-function redirectWithError(res: import("express").Response, message: string) {
+// El navegador vuelve con un código de un solo uso (no con el token).
+async function redirectWithLogin(res: Response, userId: string) {
+  const code = await issueLoginCode(userId);
+  res.redirect(`${FRONTEND_URL}/oauth-callback?code=${code}`);
+}
+
+function redirectWithError(res: Response, message: string) {
   res.redirect(`${FRONTEND_URL}/login?oauthError=${encodeURIComponent(message)}`);
+}
+
+async function finishLogin(res: Response, provider: "google" | "facebook", providerId: string, email: string) {
+  try {
+    const user = await findOrCreateOAuthUser(provider, providerId, email);
+    if (!user.isActive) {
+      redirectWithError(res, "Esta cuenta está desactivada.");
+      return;
+    }
+    await redirectWithLogin(res, user.id);
+  } catch (err) {
+    if (err instanceof OAuthLoginError) {
+      redirectWithError(res, err.message);
+      return;
+    }
+    throw err;
+  }
 }
 
 // --- Google ---
@@ -66,8 +100,8 @@ oauthRouter.get("/google", (_req, res) => {
     redirect_uri: `${BACKEND_URL}/auth/google/callback`,
     response_type: "code",
     scope: "openid email profile",
-    access_type: "offline",
     prompt: "select_account",
+    state: newState(res),
   });
   res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
 });
@@ -79,9 +113,13 @@ oauthRouter.get(
       redirectWithError(res, "El inicio de sesión con Google todavía no está configurado.");
       return;
     }
+    if (!stateIsValid(req, res)) {
+      redirectWithError(res, "El inicio de sesión con Google no es válido o tardó demasiado. Intenta de nuevo.");
+      return;
+    }
     const code = req.query.code as string | undefined;
     if (!code) {
-      redirectWithError(res, "Google no envió un código de autorización.");
+      redirectWithError(res, "Cancelaste el inicio de sesión con Google.");
       return;
     }
 
@@ -105,15 +143,17 @@ oauthRouter.get(
     const profileRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
       headers: { Authorization: `Bearer ${access_token}` },
     });
-    const profile = (await profileRes.json()) as { sub: string; email: string };
-
-    const user = await findOrCreateOAuthUser("google", profile.sub, profile.email);
-    if (!user.isActive) {
-      redirectWithError(res, "Esta cuenta está desactivada.");
+    if (!profileRes.ok) {
+      redirectWithError(res, "No se pudo leer tu perfil de Google.");
       return;
     }
-    const token = signToken({ userId: user.id, role: user.role });
-    redirectWithToken(res, token);
+    const profile = (await profileRes.json()) as { sub?: string; email?: string; email_verified?: boolean };
+    if (!profile.sub || !profile.email || profile.email_verified !== true) {
+      redirectWithError(res, "Tu cuenta de Google no tiene un correo verificado. Usa otro método de ingreso.");
+      return;
+    }
+
+    await finishLogin(res, "google", profile.sub, profile.email);
   })
 );
 
@@ -128,6 +168,7 @@ oauthRouter.get("/facebook", (_req, res) => {
     client_id: process.env.FACEBOOK_CLIENT_ID!,
     redirect_uri: `${BACKEND_URL}/auth/facebook/callback`,
     scope: "email public_profile",
+    state: newState(res),
   });
   res.redirect(`https://www.facebook.com/v19.0/dialog/oauth?${params}`);
 });
@@ -139,9 +180,13 @@ oauthRouter.get(
       redirectWithError(res, "El inicio de sesión con Facebook todavía no está configurado.");
       return;
     }
+    if (!stateIsValid(req, res)) {
+      redirectWithError(res, "El inicio de sesión con Facebook no es válido o tardó demasiado. Intenta de nuevo.");
+      return;
+    }
     const code = req.query.code as string | undefined;
     if (!code) {
-      redirectWithError(res, "Facebook no envió un código de autorización.");
+      redirectWithError(res, "Cancelaste el inicio de sesión con Facebook.");
       return;
     }
 
@@ -158,21 +203,35 @@ oauthRouter.get(
     }
     const { access_token } = (await tokenRes.json()) as { access_token: string };
 
-    const profileRes = await fetch(
-      `https://graph.facebook.com/me?fields=id,email&access_token=${access_token}`
-    );
-    const profile = (await profileRes.json()) as { id: string; email?: string };
-    if (!profile.email) {
+    const profileRes = await fetch(`https://graph.facebook.com/me?fields=id,email&access_token=${encodeURIComponent(access_token)}`);
+    const profile = (await profileRes.json()) as { id?: string; email?: string };
+    if (!profile.id || !profile.email) {
       redirectWithError(res, "Tu cuenta de Facebook no tiene un correo asociado. Usa otro método de ingreso.");
       return;
     }
 
-    const user = await findOrCreateOAuthUser("facebook", profile.id, profile.email);
-    if (!user.isActive) {
-      redirectWithError(res, "Esta cuenta está desactivada.");
+    await finishLogin(res, "facebook", profile.id, profile.email);
+  })
+);
+
+// El frontend canjea aquí el código con el que volvió el navegador.
+const exchangesByIp = createRateLimiter(30, 15 * 60_000);
+const exchangeSchema = z.object({ code: z.string().regex(/^[a-f0-9]{64}$/) });
+
+oauthRouter.post(
+  "/oauth/exchange",
+  limitRequests(exchangesByIp, clientIp, "Demasiados intentos. Espera unos minutos."),
+  catchAsync(async (req, res) => {
+    const parsed = exchangeSchema.safeParse(req.body);
+    const user = parsed.success ? await redeemLoginCode(parsed.data.code) : null;
+    if (!user) {
+      res.status(400).json({ error: "El enlace de inicio de sesión no es válido o ya se usó. Intenta de nuevo." });
       return;
     }
-    const token = signToken({ userId: user.id, role: user.role });
-    redirectWithToken(res, token);
+    if (!user.isActive) {
+      res.status(403).json({ error: "Esta cuenta está desactivada." });
+      return;
+    }
+    res.json({ token: tokenFor(user), user: { id: user.id, email: user.email, role: user.role } });
   })
 );

@@ -9,12 +9,19 @@ function image(unsplashId: string) {
 }
 
 async function main() {
+  // Sin contraseña por defecto: una conocida (antes "admin1234") dejaría el
+  // panel abierto si el seed se corre en producción. Solo se usa al crear el
+  // administrador; si ya existe, su contraseña no cambia.
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD;
+  if (!adminPassword || adminPassword.length < 12) {
+    throw new Error("Define SEED_ADMIN_PASSWORD (mínimo 12 caracteres) en el .env antes de correr el seed.");
+  }
   const admin = await prisma.user.upsert({
     where: { email: "admin@tienda.test" },
     update: {},
     create: {
       email: "admin@tienda.test",
-      passwordHash: await bcrypt.hash("admin1234", 10),
+      passwordHash: await bcrypt.hash(adminPassword, 10),
       role: "ADMIN",
     },
   });

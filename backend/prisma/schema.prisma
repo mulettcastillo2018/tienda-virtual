@@ -123,7 +123,12 @@ model User {
   providerId          String?
   role                Role                  @default(CUSTOMER)
   isActive            Boolean               @default(true)
+  // Va dentro de cada token de sesión. Al cambiar la contraseña, el rol o
+  // desactivar la cuenta se incrementa, y todos los tokens anteriores dejan
+  // de servir de inmediato.
+  tokenVersion        Int                   @default(0)
   createdAt           DateTime              @default(now())
+  oauthLoginCodes     OAuthLoginCode[]
   addresses           ShippingAddress[]
   cart                Cart?
   orders              Order[]
@@ -136,6 +141,19 @@ model User {
   orderStatusChanges  OrderStatusLog[]
 
   @@unique([provider, providerId])
+}
+
+// Al volver de Google/Facebook el navegador recibe este código (no el token
+// de sesión, que quedaría en el historial y en los registros de servidores) y
+// lo canjea una sola vez, en los 2 minutos siguientes, por el token.
+model OAuthLoginCode {
+  id        String    @id @default(cuid())
+  codeHash  String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
 }
 
 model PasswordResetToken {

@@ -3,10 +3,14 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { requireAuth, requireAdminOrJuridico } from "../middleware/auth.middleware";
 import { catchAsync } from "../lib/catchAsync";
+import { createRateLimiter, limitRequests } from "../lib/rateLimit";
 import { sendPqrsUpdateEmail } from "../services/email.service";
 import { addBusinessDays, PQRS_RESPONSE_DEADLINE_BUSINESS_DAYS } from "../lib/businessDays";
 
 export const pqrsRouter = Router();
+
+// Un cliente con un problema real no radica decenas de solicitudes al día.
+const requestsByUser = createRateLimiter(10, 24 * 60 * 60_000);
 
 const statusLogInclude = {
   statusLogs: {
@@ -26,6 +30,7 @@ const createPqrsSchema = z.object({
 pqrsRouter.post(
   "/",
   requireAuth,
+  limitRequests(requestsByUser, (req) => req.user!.userId, "Ya radicaste varias solicitudes hoy. Si es urgente, escríbenos por WhatsApp."),
   catchAsync(async (req, res) => {
     const parsed = createPqrsSchema.safeParse(req.body);
     if (!parsed.success) {
