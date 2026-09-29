@@ -9,7 +9,96 @@ datasource db {
 
 enum Role {
   ADMIN
+  JURIDICO
   CUSTOMER
+}
+
+enum PqrsType {
+  PETICION
+  QUEJA
+  RECLAMO
+  SUGERENCIA
+}
+
+enum PqrsStatus {
+  RECIBIDO
+  EN_PROCESO
+  RESUELTO
+  CERRADO
+}
+
+model Pqrs {
+  id             String          @id @default(cuid())
+  userId         String
+  user           User            @relation("PqrsSubmitted", fields: [userId], references: [id])
+  type           PqrsType
+  subject        String
+  message        String
+  attachmentUrl  String?
+  status         PqrsStatus      @default(RECIBIDO)
+  dueAt          DateTime
+  orderId        String?
+  order          Order?          @relation(fields: [orderId], references: [id])
+  response       String?
+  responseAttachmentUrl String?
+  respondedById  String?
+  respondedBy    User?           @relation("PqrsResponded", fields: [respondedById], references: [id])
+  respondedAt    DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  statusLogs     PqrsStatusLog[]
+}
+
+model PqrsStatusLog {
+  id          String      @id @default(cuid())
+  pqrsId      String
+  pqrs        Pqrs        @relation(fields: [pqrsId], references: [id], onDelete: Cascade)
+  fromStatus  PqrsStatus?
+  toStatus    PqrsStatus
+  comment     String?
+  attachmentUrl String?
+  changedById String
+  changedBy   User        @relation(fields: [changedById], references: [id])
+  changedAt   DateTime    @default(now())
+}
+
+model Carrier {
+  id         String   @id @default(cuid())
+  name       String
+  logoUrl    String
+  websiteUrl String
+  isActive   Boolean  @default(true)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+}
+
+model SocialLink {
+  id        String   @id @default(cuid())
+  name      String
+  iconUrl   String
+  url       String
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model PaymentMethod {
+  id         String   @id @default(cuid())
+  name       String
+  logoUrl    String
+  websiteUrl String
+  isActive   Boolean  @default(true)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+}
+
+model ContactInfo {
+  id        String   @id @default("main")
+  phone     String
+  whatsapp  String
+  email     String
+  address   String
+  updatedAt DateTime @updatedAt
 }
 
 enum OrderStatus {
@@ -26,20 +115,43 @@ enum PaymentProvider {
 }
 
 model User {
-  id           String            @id @default(cuid())
-  email        String            @unique
-  passwordHash String
-  role         Role              @default(CUSTOMER)
-  createdAt    DateTime          @default(now())
-  addresses    ShippingAddress[]
-  cart         Cart?
-  orders       Order[]
+  id                  String                @id @default(cuid())
+  email               String                @unique
+  phone               String?
+  passwordHash        String?
+  provider            String?
+  providerId          String?
+  role                Role                  @default(CUSTOMER)
+  isActive            Boolean               @default(true)
+  createdAt           DateTime              @default(now())
+  addresses           ShippingAddress[]
+  cart                Cart?
+  orders              Order[]
+  passwordResetTokens PasswordResetToken[]
+  pqrsSubmitted       Pqrs[]                @relation("PqrsSubmitted")
+  pqrsResponded       Pqrs[]                @relation("PqrsResponded")
+  pqrsStatusChanges   PqrsStatusLog[]
+  discountLogsCreated ProductDiscountLog[]
+  storeReviews        StoreReview[]
+
+  @@unique([provider, providerId])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
 }
 
 model Category {
   id       String    @id @default(cuid())
   name     String
   slug     String    @unique
+  icon     String?
   products Product[]
 }
 
@@ -48,6 +160,9 @@ model Product {
   name           String
   description    String
   price          Int
+  discountPercentage Int?
+  discountEndsAt DateTime?
+  brand          String?
   stock          Int         @default(0)
   categoryId     String
   category       Category    @relation(fields: [categoryId], references: [id])
@@ -61,6 +176,20 @@ model Product {
   createdAt      DateTime    @default(now())
   cartItems      CartItem[]
   orderItems     OrderItem[]
+  discountLogs   ProductDiscountLog[]
+}
+
+model ProductDiscountLog {
+  id                 String      @id @default(cuid())
+  productId          String
+  product            Product     @relation(fields: [productId], references: [id])
+  discountPercentage Int
+  startedAt          DateTime    @default(now())
+  endsAt             DateTime
+  createdById        String
+  createdBy          User        @relation(fields: [createdById], references: [id])
+  createdAt          DateTime    @default(now())
+  orderItems         OrderItem[]
 }
 
 model Cart {
@@ -82,18 +211,30 @@ model CartItem {
 }
 
 model ShippingAddress {
-  id            String  @id @default(cuid())
+  id            String              @id @default(cuid())
   userId        String
-  user          User    @relation(fields: [userId], references: [id])
+  user          User                @relation(fields: [userId], references: [id])
   fullName      String
   addressLine1  String
   addressLine2  String?
   city          String
   state         String
   postalCode    String
-  country       String  @default("CO")
+  country       String              @default("CO")
   phone         String
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
   orders        Order[]
+  changeLogs    AddressChangeLog[]
+}
+
+model AddressChangeLog {
+  id           String          @id @default(cuid())
+  addressId    String
+  address      ShippingAddress @relation(fields: [addressId], references: [id], onDelete: Cascade)
+  previousData Json
+  newData      Json
+  changedAt    DateTime        @default(now())
 }
 
 model Order {
@@ -110,16 +251,35 @@ model Order {
   createdAt         DateTime        @default(now())
   items             OrderItem[]
   payments          Payment[]
+  pqrsList          Pqrs[]
+  storeReview       StoreReview?
+}
+
+// Reseña de la experiencia de compra/tienda en general. Solo puede dejarse
+// una por pedido, y únicamente si ese pedido ya llegó a un estado de compra
+// real (no PENDING/CANCELLED) — así garantizamos que sea de un cliente que
+// efectivamente compró.
+model StoreReview {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  orderId   String   @unique
+  order     Order    @relation(fields: [orderId], references: [id])
+  rating    Int
+  comment   String
+  createdAt DateTime @default(now())
 }
 
 model OrderItem {
-  id              String  @id @default(cuid())
+  id              String              @id @default(cuid())
   orderId         String
-  order           Order   @relation(fields: [orderId], references: [id])
+  order           Order               @relation(fields: [orderId], references: [id])
   productId       String
-  product         Product @relation(fields: [productId], references: [id])
+  product         Product             @relation(fields: [productId], references: [id])
   quantity        Int
   priceAtPurchase Int
+  discountLogId   String?
+  discountLog     ProductDiscountLog? @relation(fields: [discountLogId], references: [id])
 }
 
 model Payment {

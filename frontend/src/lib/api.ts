@@ -32,3 +32,21 @@ export async function apiFetch<T>(
   if (res.status === 204) return undefined as T;
   return res.json();
 }
+
+export async function uploadFile<T>(path: string, file: File, token: string | null): Promise<T> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new ApiError(body?.error?.toString() ?? `Error ${res.status}`, res.status);
+  }
+
+  return res.json();
+}

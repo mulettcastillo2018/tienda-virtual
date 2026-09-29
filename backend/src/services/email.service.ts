@@ -92,3 +92,63 @@ export async function sendShippingNotificationEmail(
     html: `<p>Tu pedido fue despachado con <strong>${carrier}</strong>.</p><p>Número de guía: <strong>${trackingNumber}</strong></p>`,
   });
 }
+
+export async function sendPasswordResetEmail(toEmail: string, resetUrl: string) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.warn("RESEND_API_KEY no configurado — se omite el envío del correo de reseteo.");
+    return;
+  }
+
+  const resend = new Resend(apiKey);
+  const from = process.env.STORE_FROM_EMAIL ?? "Tienda Virtual <onboarding@resend.dev>";
+
+  await resend.emails.send({
+    from,
+    to: toEmail,
+    subject: "Restablece tu contraseña",
+    html: `
+      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+        <h2>Restablece tu contraseña</h2>
+        <p>Solicitaste restablecer tu contraseña. Este enlace es válido por 30 minutos.</p>
+        <p><a href="${resetUrl}" style="display:inline-block;padding:10px 20px;background:#111;color:#fff;text-decoration:none;border-radius:9999px;">Restablecer contraseña</a></p>
+        <p>Si no solicitaste esto, puedes ignorar este correo.</p>
+      </div>
+    `,
+  });
+}
+
+export async function sendPqrsUpdateEmail(
+  toEmail: string,
+  pqrs: { id: string; subject: string; status: string; response: string | null }
+) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.warn("RESEND_API_KEY no configurado — se omite el envío del correo de PQRS.");
+    return;
+  }
+
+  const resend = new Resend(apiKey);
+  const from = process.env.STORE_FROM_EMAIL ?? "Tienda Virtual <onboarding@resend.dev>";
+  const statusLabels: Record<string, string> = {
+    RECIBIDO: "Recibido",
+    EN_PROCESO: "En proceso",
+    RESUELTO: "Resuelto",
+    CERRADO: "Cerrado",
+  };
+
+  await resend.emails.send({
+    from,
+    to: toEmail,
+    subject: `Actualización de tu PQRS #${pqrs.id.slice(-8)}: ${pqrs.subject}`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+        <h2>Actualización de tu solicitud</h2>
+        <p><strong>Asunto:</strong> ${pqrs.subject}</p>
+        <p><strong>Estado:</strong> ${statusLabels[pqrs.status] ?? pqrs.status}</p>
+        ${pqrs.response ? `<p><strong>Respuesta:</strong></p><p>${pqrs.response}</p>` : ""}
+        <p>Puedes ver el detalle completo desde tu cuenta.</p>
+      </div>
+    `,
+  });
+}

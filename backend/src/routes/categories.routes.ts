@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { requireAuth, requireAdmin } from "../middleware/auth.middleware";
 import { catchAsync } from "../lib/catchAsync";
+import { CATEGORY_ICON_NAMES } from "../lib/categoryIcons";
 
 export const categoriesRouter = Router();
 
@@ -17,6 +18,7 @@ categoriesRouter.get(
 const categorySchema = z.object({
   name: z.string().trim().min(1),
   slug: z.string().trim().min(1),
+  icon: z.enum(CATEGORY_ICON_NAMES).nullable().optional(),
 });
 
 categoriesRouter.post(

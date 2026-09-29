@@ -2,6 +2,7 @@ export interface Category {
   id: string;
   name: string;
   slug: string;
+  icon: string | null;
 }
 
 export interface Product {
@@ -9,6 +10,9 @@ export interface Product {
   name: string;
   description: string;
   price: number;
+  discountPercentage: number | null;
+  discountEndsAt: string | null;
+  brand: string | null;
   stock: number;
   categoryId: string;
   category?: Category;
@@ -20,6 +24,21 @@ export interface Product {
   sku: string;
   isActive: boolean;
   createdAt: string;
+}
+
+export interface ProductFilters {
+  minPrice: number;
+  maxPrice: number;
+  brands: string[];
+}
+
+export interface ProductDiscountLog {
+  id: string;
+  discountPercentage: number;
+  startedAt: string;
+  endsAt: string;
+  createdAt: string;
+  createdBy: { id: string; email: string };
 }
 
 export interface CartItem {
@@ -45,6 +64,16 @@ export interface ShippingAddress {
   postalCode: string;
   country: string;
   phone: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AddressChangeLog {
+  id: string;
+  addressId: string;
+  previousData: Record<string, unknown>;
+  newData: Record<string, unknown>;
+  changedAt: string;
 }
 
 export type OrderStatus =
@@ -63,12 +92,116 @@ export interface Order {
   trackingNumber: string | null;
   status: OrderStatus;
   createdAt: string;
-  items: { id: string; productId: string; quantity: number; priceAtPurchase: number; product?: Product }[];
+  items: {
+    id: string;
+    productId: string;
+    quantity: number;
+    priceAtPurchase: number;
+    product?: Product;
+    discountLogId: string | null;
+    discountLog?: { discountPercentage: number; createdBy: { email: string } } | null;
+  }[];
   shippingAddress?: ShippingAddress;
 }
+
+export type UserRole = "ADMIN" | "JURIDICO" | "CUSTOMER";
 
 export interface AuthUser {
   id: string;
   email: string;
-  role: "ADMIN" | "CUSTOMER";
+  role: UserRole;
+}
+
+export interface UserProfile extends AuthUser {
+  phone: string | null;
+  createdAt: string;
+}
+
+export type PqrsType = "PETICION" | "QUEJA" | "RECLAMO" | "SUGERENCIA";
+export type PqrsStatus = "RECIBIDO" | "EN_PROCESO" | "RESUELTO" | "CERRADO";
+
+export interface PqrsStatusLog {
+  id: string;
+  fromStatus: PqrsStatus | null;
+  toStatus: PqrsStatus;
+  comment: string | null;
+  attachmentUrl: string | null;
+  changedAt: string;
+  changedBy: { id: string; email: string; role: UserRole };
+}
+
+export interface Pqrs {
+  id: string;
+  type: PqrsType;
+  subject: string;
+  message: string;
+  attachmentUrl: string | null;
+  status: PqrsStatus;
+  dueAt: string;
+  orderId: string | null;
+  response: string | null;
+  responseAttachmentUrl: string | null;
+  respondedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  user?: { id: string; email: string; phone: string };
+  respondedBy?: { id: string; email: string } | null;
+  order?: { id: string } | null;
+  statusLogs?: PqrsStatusLog[];
+}
+
+export interface PqrsStats {
+  byStatus: Record<PqrsStatus, number>;
+  byType: Record<PqrsType, number>;
+  total: number;
+  avgResponseTimeHours: number | null;
+  overdue: number;
+}
+
+export interface Carrier {
+  id: string;
+  name: string;
+  logoUrl: string;
+  websiteUrl: string;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+export interface SocialLink {
+  id: string;
+  name: string;
+  iconUrl: string;
+  url: string;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+export interface PaymentMethod {
+  id: string;
+  name: string;
+  logoUrl: string;
+  websiteUrl: string;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+export interface ContactInfo {
+  phone: string;
+  whatsapp: string;
+  email: string;
+  address: string;
+}
+
+export interface StoreReview {
+  id: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+  customerLabel: string;
+}
+
+export interface StoreReviewsResponse {
+  items: StoreReview[];
+  average: number;
+  total: number;
 }

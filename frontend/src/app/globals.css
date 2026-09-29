@@ -12,6 +12,18 @@
   --muted-foreground: #6b6875;
 }
 
+:root[data-theme="dark"] {
+  --background: #131118;
+  --foreground: #f3f1f7;
+  --accent: #ff6a4a;
+  --accent-foreground: #ffffff;
+  --accent-2: #a685ff;
+  --accent-3: #ff5c94;
+  --border: #2c2934;
+  --muted: #1e1c26;
+  --muted-foreground: #a29dae;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -26,10 +38,77 @@
     Helvetica, Arial, sans-serif;
 }
 
+html {
+  color-scheme: light;
+}
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.decorative-shapes {
+  position: fixed;
+  inset: 0;
+  z-index: -10;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.decorative-shapes::before,
+.decorative-shapes::after {
+  content: "";
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(90px);
+  opacity: 0.35;
+}
+
+.decorative-shapes::before {
+  top: -12rem;
+  right: -8rem;
+  width: 28rem;
+  height: 28rem;
+  background: radial-gradient(circle, var(--accent), transparent 70%);
+}
+
+.decorative-shapes::after {
+  bottom: -14rem;
+  left: -10rem;
+  width: 32rem;
+  height: 32rem;
+  background: radial-gradient(circle, var(--accent-2), transparent 70%);
+}
+
+.decorative-shape-mid {
+  position: absolute;
+  top: 35%;
+  left: 55%;
+  width: 24rem;
+  height: 24rem;
+  border-radius: 9999px;
+  background: radial-gradient(circle, var(--accent-3), transparent 70%);
+  filter: blur(100px);
+  opacity: 0.22;
+}
+
+:root[data-theme="dark"] .decorative-shapes::before,
+:root[data-theme="dark"] .decorative-shapes::after,
+:root[data-theme="dark"] .decorative-shape-mid {
+  opacity: 0.28;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 .brand-gradient-text {
@@ -81,4 +160,19 @@ body {
 .badge-new {
   background-image: linear-gradient(90deg, var(--accent), var(--accent-3));
   color: #ffffff;
+}
+
+@keyframes flash-deal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-flash-in {
+  animation: flash-deal-in 0.45s ease-out;
 }

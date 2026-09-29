@@ -4,8 +4,8 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-function image(seed: string) {
-  return `https://picsum.photos/seed/${seed}/800/800`;
+function image(unsplashId: string) {
+  return `https://images.unsplash.com/photo-${unsplashId}?w=800&h=800&fit=crop`;
 }
 
 async function main() {
@@ -50,6 +50,7 @@ async function main() {
   const products = [
     {
       sku: "AUD-001",
+      image: "1505740420928-5e560c06d30e",
       name: "Audífonos inalámbricos",
       description: "Audífonos bluetooth con cancelación de ruido.",
       price: 129_000,
@@ -62,6 +63,7 @@ async function main() {
     },
     {
       sku: "PAR-001",
+      image: "1608043152269-423dbba4e7e1",
       name: "Parlante Bluetooth portátil",
       description: "Sonido envolvente, resistente al agua (IPX6), 12 horas de batería.",
       price: 149_000,
@@ -74,6 +76,7 @@ async function main() {
     },
     {
       sku: "MOU-001",
+      image: "1527864550417-7fd91fc51a46",
       name: "Mouse inalámbrico ergonómico",
       description: "Diseño ergonómico, sensor óptico de precisión, silencioso.",
       price: 69_000,
@@ -86,6 +89,7 @@ async function main() {
     },
     {
       sku: "CAR-001",
+      image: "1583863788434-e58a36330cf0",
       name: "Cargador rápido USB-C 30W",
       description: "Carga rápida compatible con la mayoría de celulares y tablets.",
       price: 45_000,
@@ -98,6 +102,7 @@ async function main() {
     },
     {
       sku: "LAM-001",
+      image: "1507473885765-e6ed057f782c",
       name: "Lámpara de escritorio LED",
       description: "Lámpara regulable con puerto USB.",
       price: 79_000,
@@ -110,6 +115,7 @@ async function main() {
     },
     {
       sku: "ORG-001",
+      image: "1587145820266-a5951ee6f620",
       name: "Organizador de escritorio de bambú",
       description: "Compartimentos para lápices, celular y accesorios de oficina.",
       price: 55_000,
@@ -122,6 +128,7 @@ async function main() {
     },
     {
       sku: "DIF-001",
+      image: "1608571423902-eed4a5ad8108",
       name: "Difusor de aromas ultrasónico",
       description: "Con luz LED de colores, ideal para espacios pequeños.",
       price: 89_000,
@@ -134,6 +141,7 @@ async function main() {
     },
     {
       sku: "TAZ-001",
+      image: "1517256064527-09c73fc73e38",
       name: "Set de tazas de cerámica x4",
       description: "Diseño minimalista, aptas para microondas y lavavajillas.",
       price: 65_000,
@@ -146,6 +154,7 @@ async function main() {
     },
     {
       sku: "MOC-001",
+      image: "1553062407-98eeb64c6a62",
       name: "Mochila urbana antirrobo",
       description: "Compartimento acolchado para portátil, puerto USB externo.",
       price: 159_000,
@@ -158,6 +167,7 @@ async function main() {
     },
     {
       sku: "GOR-001",
+      image: "1521369909029-2afed882baee",
       name: "Gorra unisex ajustable",
       description: "Algodón transpirable, ajuste trasero universal.",
       price: 39_000,
@@ -170,6 +180,7 @@ async function main() {
     },
     {
       sku: "BIL-001",
+      image: "1627123424574-724758594e93",
       name: "Billetera de cuero minimalista",
       description: "Cuero genuino, diseño delgado con protección RFID.",
       price: 75_000,
@@ -182,6 +193,7 @@ async function main() {
     },
     {
       sku: "BOT-001",
+      image: "1602143407151-7111542de6e8",
       name: "Botella térmica deportiva 750ml",
       description: "Mantiene la temperatura hasta 12 horas, acero inoxidable.",
       price: 59_000,
@@ -194,6 +206,7 @@ async function main() {
     },
     {
       sku: "BAN-001",
+      image: "1598289431512-b97b0917affc",
       name: "Bandas de resistencia (set x3)",
       description: "Distintos niveles de resistencia, incluye bolsa de transporte.",
       price: 49_000,
@@ -207,22 +220,22 @@ async function main() {
   ];
 
   for (const p of products) {
+    const data = {
+      name: p.name,
+      description: p.description,
+      price: p.price,
+      stock: p.stock,
+      categoryId: p.category.id,
+      images: [image(p.image)],
+      weightInGrams: p.weightInGrams,
+      widthCm: p.widthCm,
+      heightCm: p.heightCm,
+      depthCm: p.depthCm,
+    };
     await prisma.product.upsert({
       where: { sku: p.sku },
-      update: {},
-      create: {
-        name: p.name,
-        description: p.description,
-        price: p.price,
-        stock: p.stock,
-        categoryId: p.category.id,
-        images: [image(p.sku.toLowerCase())],
-        weightInGrams: p.weightInGrams,
-        widthCm: p.widthCm,
-        heightCm: p.heightCm,
-        depthCm: p.depthCm,
-        sku: p.sku,
-      },
+      update: data,
+      create: { ...data, sku: p.sku },
     });
   }
 

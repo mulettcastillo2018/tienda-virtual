@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useAuthStore } from "@/store/auth.store";
 import { useCartStore } from "@/store/cart.store";
 import { WompiButton } from "@/components/WompiButton";
+import { AddressForm, type AddressFormValues } from "@/components/AddressForm";
+import { getEffectivePrice } from "@/lib/pricing";
+import { useT } from "@/lib/i18n";
 import type { Order, ShippingAddress } from "@/lib/types";
 
 function formatCOP(amount: number) {
@@ -16,6 +19,10 @@ type Step = "address" | "summary" | "pay";
 
 export default function CheckoutPage() {
   const [step, setStep] = useState<Step>("address");
+  const [addresses, setAddresses] = useState<ShippingAddress[]>([]);
+  const [loadingAddresses, setLoadingAddresses] = useState(true);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [showNewAddressForm, setShowNewAddressForm] = useState(false);
   const [address, setAddress] = useState<ShippingAddress | null>(null);
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -24,40 +31,47 @@ export default function CheckoutPage() {
   const token = useAuthStore((state) => state.token);
   const cart = useCartStore((state) => state.cart);
   const router = useRouter();
+  const t = useT();
 
   useEffect(() => {
     if (!token) router.push("/login");
   }, [token, router]);
 
+  useEffect(() => {
+    if (!token) return;
+    apiFetch<ShippingAddress[]>("/addresses", { token })
+      .then((data) => {
+        setAddresses(data);
+        setShowNewAddressForm(data.length === 0);
+      })
+      .catch(() => setError(t("checkout.loadAddressesError")))
+      .finally(() => setLoadingAddresses(false));
+  }, [token]);
+
   if (!token) {
     return null;
   }
 
-  async function handleAddressSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function handleUseSelectedAddress() {
+    const selected = addresses.find((a) => a.id === selectedAddressId);
+    if (!selected) return;
+    setAddress(selected);
+    setStep("summary");
+  }
+
+  async function handleNewAddressSubmit(values: AddressFormValues) {
     setError(null);
     setLoading(true);
-
-    const form = event.currentTarget;
-    const field = (name: string) => (form.elements.namedItem(name) as HTMLInputElement).value;
-
     try {
       const created = await apiFetch<ShippingAddress>("/addresses", {
         method: "POST",
         token,
-        body: JSON.stringify({
-          fullName: field("fullName"),
-          addressLine1: field("addressLine1"),
-          city: field("city"),
-          state: field("state"),
-          postalCode: field("postalCode"),
-          phone: field("phone"),
-        }),
+        body: JSON.stringify(values),
       });
       setAddress(created);
       setStep("summary");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "No se pudo guardar la dirección.");
+      setError(err instanceof ApiError ? err.message : t("checkout.saveAddressError"));
     } finally {
       setLoading(false);
     }
@@ -76,43 +90,82 @@ export default function CheckoutPage() {
       setOrder(created);
       setStep("pay");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "No se pudo crear la orden.");
+      setError(err instanceof ApiError ? err.message : t("checkout.createOrderError"));
     } finally {
       setLoading(false);
     }
   }
 
-  const subtotal = cart?.items.reduce((sum, item) => sum + item.product.price * item.quantity, 0) ?? 0;
+  const subtotal = cart?.items.reduce((sum, item) => sum + getEffectivePrice(item.product) * item.quantity, 0) ?? 0;
 
   return (
     <div className="mx-auto max-w-xl px-4 py-10 sm:px-6">
-      <h1 className="text-2xl font-bold">Checkout</h1>
+      <h1 className="text-2xl font-bold">{t("checkout.title")}</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Paso {step === "address" ? "1" : step === "summary" ? "2" : "3"} de 3
+        {t("checkout.step", { n: step === "address" ? "1" : step === "summary" ? "2" : "3" })}
       </p>
 
       {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
 
       {step === "address" ? (
-        <form onSubmit={handleAddressSubmit} className="mt-6 space-y-4">
-          <input name="fullName" placeholder="Nombre completo" required className="w-full rounded-lg border border-border px-3 py-2 text-sm" />
-          <input name="addressLine1" placeholder="Dirección" required className="w-full rounded-lg border border-border px-3 py-2 text-sm" />
-          <div className="grid grid-cols-2 gap-3">
-            <input name="city" placeholder="Ciudad" required className="rounded-lg border border-border px-3 py-2 text-sm" />
-            <input name="state" placeholder="Departamento" required className="rounded-lg border border-border px-3 py-2 text-sm" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <input name="postalCode" placeholder="Código postal" required className="rounded-lg border border-border px-3 py-2 text-sm" />
-            <input name="phone" placeholder="Teléfono" required className="rounded-lg border border-border px-3 py-2 text-sm" />
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn-primary w-full rounded-full px-6 py-2.5 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {loading ? "Guardando…" : "Continuar"}
-          </button>
-        </form>
+        <div className="mt-6 space-y-4">
+          {loadingAddresses ? <p className="text-sm text-muted-foreground">{t("checkout.loadingAddresses")}</p> : null}
+
+          {!loadingAddresses && addresses.length > 0 ? (
+            <div className="space-y-2">
+              {addresses.map((a) => (
+                <label
+                  key={a.id}
+                  className={`block cursor-pointer rounded-xl border p-4 text-sm ${
+                    selectedAddressId === a.id ? "border-accent" : "border-border"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="radio"
+                      name="savedAddress"
+                      checked={selectedAddressId === a.id}
+                      onChange={() => setSelectedAddressId(a.id)}
+                      className="mt-1"
+                    />
+                    <div>
+                      <p className="font-semibold">{a.fullName}</p>
+                      <p className="text-muted-foreground">
+                        {a.addressLine1}
+                        {a.addressLine2 ? `, ${a.addressLine2}` : ""}
+                      </p>
+                      <p className="text-muted-foreground">
+                        {a.city}, {a.state}
+                      </p>
+                    </div>
+                  </div>
+                </label>
+              ))}
+
+              {!showNewAddressForm ? (
+                <div className="flex flex-col gap-2 pt-2">
+                  <button
+                    onClick={handleUseSelectedAddress}
+                    disabled={!selectedAddressId}
+                    className="btn-primary w-full rounded-full px-6 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {t("checkout.continueWithAddress")}
+                  </button>
+                  <button
+                    onClick={() => setShowNewAddressForm(true)}
+                    className="text-sm font-semibold text-accent"
+                  >
+                    {t("checkout.useNewAddress")}
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {showNewAddressForm ? (
+            <AddressForm submitLabel={t("checkout.continue")} loading={loading} onSubmit={handleNewAddressSubmit} />
+          ) : null}
+        </div>
       ) : null}
 
       {step === "summary" ? (
@@ -125,18 +178,16 @@ export default function CheckoutPage() {
             </p>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Subtotal</span>
+            <span className="text-muted-foreground">{t("checkout.subtotal")}</span>
             <span>{formatCOP(subtotal)}</span>
           </div>
-          <p className="text-xs text-muted-foreground">
-            El costo de envío se calcula al confirmar, según tu ciudad y el peso del pedido.
-          </p>
+          <p className="text-xs text-muted-foreground">{t("checkout.shippingNote")}</p>
           <button
             onClick={handleConfirmOrder}
             disabled={loading}
             className="btn-primary w-full rounded-full px-6 py-2.5 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {loading ? "Creando orden…" : "Confirmar y pagar"}
+            {loading ? t("checkout.creatingOrder") : t("checkout.confirmAndPay")}
           </button>
         </div>
       ) : null}
@@ -144,11 +195,11 @@ export default function CheckoutPage() {
       {step === "pay" && order ? (
         <div className="mt-6 space-y-4">
           <div className="flex items-center justify-between border-t border-border pt-4">
-            <span className="text-muted-foreground">Envío</span>
+            <span className="text-muted-foreground">{t("checkout.shipping")}</span>
             <span>{formatCOP(order.shippingCost)}</span>
           </div>
           <div className="flex items-center justify-between text-lg font-bold">
-            <span>Total</span>
+            <span>{t("checkout.total")}</span>
             <span>{formatCOP(order.totalAmount)}</span>
           </div>
           <WompiButton orderId={order.id} />

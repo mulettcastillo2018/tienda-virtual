@@ -33,3 +33,19 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction) {
   }
   next();
 }
+
+export function requireJuridico(req: Request, res: Response, next: NextFunction) {
+  if (req.user?.role !== "JURIDICO") {
+    res.status(403).json({ error: "Requiere permisos del área jurídica" });
+    return;
+  }
+  next();
+}
+
+export function requireAdminOrJuridico(req: Request, res: Response, next: NextFunction) {
+  if (req.user?.role !== "ADMIN" && req.user?.role !== "JURIDICO") {
+    res.status(403).json({ error: "No autorizado" });
+    return;
+  }
+  next();
+}

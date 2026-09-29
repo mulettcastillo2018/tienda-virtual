@@ -5,8 +5,15 @@ import { requireAuth, requireAdmin } from "../middleware/auth.middleware";
 import { calculateShippingQuote } from "../services/carrier.service";
 import { sendShippingNotificationEmail } from "../services/email.service";
 import { catchAsync } from "../lib/catchAsync";
+import { getEffectivePrice, isDiscountActive } from "../lib/pricing";
 
 export const ordersRouter = Router();
+
+class InsufficientStockError extends Error {
+  constructor(productName: string) {
+    super(`Sin stock suficiente de "${productName}"`);
+  }
+}
 
 const checkoutSchema = z.object({
   shippingAddressId: z.string().min(1),
@@ -56,44 +63,91 @@ ordersRouter.post(
     const shippingQuote = calculateShippingQuote(address.postalCode, totalWeightInGrams);
 
     const subtotal = cart.items.reduce(
-      (sum, item) => sum + item.product.price * item.quantity,
+      (sum, item) => sum + getEffectivePrice(item.product) * item.quantity,
       0
     );
     const totalAmount = subtotal + shippingQuote.cost;
 
-    const order = await prisma.$transaction(async (tx) => {
-      const created = await tx.order.create({
-        data: {
-          userId,
-          shippingAddressId,
-          totalAmount,
-          shippingCost: shippingQuote.cost,
-          carrier: shippingQuote.carrier,
-          items: {
-            create: cart.items.map((item) => ({
-              productId: item.productId,
-              quantity: item.quantity,
-              priceAtPurchase: item.product.price,
-            })),
+    // Para poder explicar después "por qué" un producto se facturó más barato,
+    // enlazamos cada línea al descuento vigente en ese momento (ProductDiscountLog),
+    // no solo al precio ya calculado.
+    const discountedProductIds = cart.items.filter((item) => isDiscountActive(item.product)).map((item) => item.productId);
+    const now = new Date();
+    const activeDiscountLogs = discountedProductIds.length
+      ? await prisma.productDiscountLog.findMany({
+          where: { productId: { in: discountedProductIds }, startedAt: { lte: now }, endsAt: { gte: now } },
+        })
+      : [];
+    const discountLogByProductId = new Map(activeDiscountLogs.map((log) => [log.productId, log.id]));
+
+    let order;
+    try {
+      order = await prisma.$transaction(async (tx) => {
+        // Reserva de inventario primero, con guarda atómica contra condiciones de
+        // carrera: si dos compras concurrentes agotan el mismo producto, la
+        // actualización solo tiene efecto mientras stock >= cantidad siga siendo
+        // cierto en el momento exacto de escribir la fila (Postgres bloquea la fila
+        // durante el UPDATE), así que la segunda petición ve count === 0 y falla
+        // limpiamente en vez de dejar el stock en negativo.
+        for (const item of cart.items) {
+          const result = await tx.product.updateMany({
+            where: { id: item.productId, stock: { gte: item.quantity } },
+            data: { stock: { decrement: item.quantity } },
+          });
+          if (result.count === 0) {
+            throw new InsufficientStockError(item.product.name);
+          }
+        }
+
+        const created = await tx.order.create({
+          data: {
+            userId,
+            shippingAddressId,
+            totalAmount,
+            shippingCost: shippingQuote.cost,
+            carrier: shippingQuote.carrier,
+            items: {
+              create: cart.items.map((item) => ({
+                productId: item.productId,
+                quantity: item.quantity,
+                priceAtPurchase: getEffectivePrice(item.product),
+                discountLogId: discountLogByProductId.get(item.productId),
+              })),
+            },
           },
-        },
-        include: { items: true },
-      });
-
-      // Reserva de inventario.
-      for (const item of cart.items) {
-        await tx.product.update({
-          where: { id: item.productId },
-          data: { stock: { decrement: item.quantity } },
+          include: { items: true },
         });
+
+        await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
+
+        return created;
+      });
+    } catch (err) {
+      if (err instanceof InsufficientStockError) {
+        res.status(409).json({ error: err.message });
+        return;
       }
-
-      await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
-
-      return created;
-    });
+      throw err;
+    }
 
     res.status(201).json(order);
+  })
+);
+
+ordersRouter.get(
+  "/me",
+  requireAuth,
+  catchAsync(async (req, res) => {
+    const orders = await prisma.order.findMany({
+      where: { userId: req.user!.userId },
+      orderBy: { createdAt: "desc" },
+      include: {
+        items: { include: { product: true, discountLog: { include: { createdBy: { select: { email: true } } } } } },
+        shippingAddress: true,
+        payments: true,
+      },
+    });
+    res.json(orders);
   })
 );
 
@@ -103,7 +157,11 @@ ordersRouter.get(
   catchAsync(async (req, res) => {
     const order = await prisma.order.findFirst({
       where: { id: req.params.id, userId: req.user!.userId },
-      include: { items: { include: { product: true } }, shippingAddress: true, payments: true },
+      include: {
+        items: { include: { product: true, discountLog: { include: { createdBy: { select: { email: true } } } } } },
+        shippingAddress: true,
+        payments: true,
+      },
     });
     if (!order) {
       res.status(404).json({ error: "Orden no encontrada" });
@@ -127,7 +185,11 @@ ordersRouter.get(
   catchAsync(async (_req, res) => {
     const orders = await prisma.order.findMany({
       orderBy: { createdAt: "desc" },
-      include: { items: true, shippingAddress: true, user: true },
+      include: {
+        items: true,
+        shippingAddress: true,
+        user: { select: { id: true, email: true, role: true } },
+      },
     });
     res.json(orders);
   })
@@ -151,7 +213,7 @@ ordersRouter.post(
         carrier: parsed.data.carrier,
         trackingNumber: parsed.data.trackingNumber,
       },
-      include: { user: true },
+      include: { user: { select: { id: true, email: true, role: true } } },
     });
 
     await sendShippingNotificationEmail(

@@ -72,6 +72,16 @@ cartRouter.put(
 );
 
 cartRouter.delete(
+  "/",
+  requireAuth,
+  catchAsync(async (req, res) => {
+    const cart = await getOrCreateCart(req.user!.userId);
+    await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
+    res.status(204).send();
+  })
+);
+
+cartRouter.delete(
   "/items/:productId",
   requireAuth,
   catchAsync(async (req, res) => {

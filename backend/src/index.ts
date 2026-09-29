@@ -1,4 +1,5 @@
 import "dotenv/config";
+import path from "node:path";
 import cors from "cors";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
@@ -10,6 +11,15 @@ import { productsRouter } from "./routes/products.routes";
 import { cartRouter } from "./routes/cart.routes";
 import { ordersRouter } from "./routes/orders.routes";
 import { paymentsRouter } from "./routes/payments.routes";
+import { usersRouter } from "./routes/users.routes";
+import { carriersRouter } from "./routes/carriers.routes";
+import { contactInfoRouter } from "./routes/contactInfo.routes";
+import { paymentMethodsRouter } from "./routes/paymentMethods.routes";
+import { socialLinksRouter } from "./routes/socialLinks.routes";
+import { uploadsRouter } from "./routes/uploads.routes";
+import { pqrsRouter } from "./routes/pqrs.routes";
+import { oauthRouter } from "./routes/oauth.routes";
+import { reviewsRouter } from "./routes/reviews.routes";
 
 const app = express();
 const port = process.env.PORT ?? 4000;
@@ -21,17 +31,29 @@ app.use(cors({ origin: process.env.FRONTEND_URL ?? "http://localhost:3000" }));
 app.use("/payments/wompi/webhook", express.raw({ type: "application/json" }));
 app.use(express.json());
 
+// Imágenes subidas localmente desde el panel admin (productos).
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+
 app.get("/health", (_req, res) => {
   res.json({ ok: true });
 });
 
 app.use("/auth", authRouter);
+app.use("/auth", oauthRouter);
 app.use("/addresses", addressesRouter);
 app.use("/categories", categoriesRouter);
 app.use("/products", productsRouter);
 app.use("/cart", cartRouter);
 app.use("/orders", ordersRouter);
 app.use("/payments", paymentsRouter);
+app.use("/users", usersRouter);
+app.use("/carriers", carriersRouter);
+app.use("/contact-info", contactInfoRouter);
+app.use("/payment-methods", paymentMethodsRouter);
+app.use("/social-links", socialLinksRouter);
+app.use("/uploads", uploadsRouter);
+app.use("/pqrs", pqrsRouter);
+app.use("/store-reviews", reviewsRouter);
 
 // Manejador de errores global: cualquier error no atrapado en las rutas
 // (incluida una caída de la base de datos) termina aquí en vez de tumbar

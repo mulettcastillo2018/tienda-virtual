@@ -10,6 +10,7 @@ interface CartState {
   addItem: (productId: string, quantity?: number) => Promise<void>;
   updateItem: (productId: string, quantity: number) => Promise<void>;
   removeItem: (productId: string) => Promise<void>;
+  clearCart: () => Promise<void>;
   itemCount: () => number;
 }
 
@@ -55,6 +56,13 @@ export const useCartStore = create<CartState>((set, get) => ({
     const token = useAuthStore.getState().token;
     if (!token) return;
     await apiFetch(`/cart/items/${productId}`, { method: "DELETE", token });
+    await get().fetchCart();
+  },
+
+  clearCart: async () => {
+    const token = useAuthStore.getState().token;
+    if (!token) return;
+    await apiFetch("/cart", { method: "DELETE", token });
     await get().fetchCart();
   },
 
