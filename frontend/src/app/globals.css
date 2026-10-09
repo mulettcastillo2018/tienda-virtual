@@ -1,56 +1,248 @@
 @import "tailwindcss";
 
+/*
+ * Sistema de diseño de la tienda (ver docs/DISENO.md).
+ *
+ * Lujoso y confiable: base neutra cálida, tinta casi negra y UN acento coral
+ * para la acción de compra. El degradado de la marca queda solo en el logo.
+ * Claro y oscuro comparten los nombres de los tokens; el interruptor de la
+ * tienda cambia el atributo data-theme en <html>.
+ */
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 :root {
-  --background: #ffffff;
-  --foreground: #14121a;
-  --accent: #ff4d2e;
+  --background: #fbfaf8;
+  --surface: #ffffff;
+  --surface-2: #f4f2ef;
+  --foreground: #141217;
+  --muted: #f4f2ef;
+  --muted-foreground: #67626d;
+  --border: #ebe8e4;
+  --border-strong: #ddd8d2;
+
+  /* Acción de compra */
+  --accent: #d4402a;
   --accent-foreground: #ffffff;
+  /* Solo para el degradado del logo */
   --accent-2: #7c3aed;
-  --accent-3: #ff2d78;
-  --border: #ececef;
-  --muted: #f6f5f8;
-  --muted-foreground: #6b6875;
+  --accent-3: #e0245e;
+
+  --exito: #15803d;
+  --aviso: #b45309;
+  --peligro: #dc2626;
+  --ring: #d4402a;
+  --sombra: 20 18 23;
 }
 
 :root[data-theme="dark"] {
-  --background: #131118;
-  --foreground: #f3f1f7;
-  --accent: #ff6a4a;
-  --accent-foreground: #ffffff;
+  --background: #0e0d11;
+  --surface: #17151b;
+  --surface-2: #201e25;
+  --foreground: #f4f2f7;
+  --muted: #201e25;
+  --muted-foreground: #a39fab;
+  --border: #2a2730;
+  --border-strong: #3a3641;
+
+  --accent: #ff6b4f;
+  --accent-foreground: #1a0b07;
   --accent-2: #a685ff;
   --accent-3: #ff5c94;
-  --border: #2c2934;
-  --muted: #1e1c26;
-  --muted-foreground: #a29dae;
+
+  --exito: #4ade80;
+  --aviso: #fbbf24;
+  --peligro: #f87171;
+  --ring: #ff6b4f;
+  --sombra: 0 0 0;
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
   --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent-2: var(--accent-2);
   --color-accent-3: var(--accent-3);
-  --color-border: var(--border);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --font-sans: "Segoe UI", ui-sans-serif, system-ui, -apple-system, Roboto,
-    Helvetica, Arial, sans-serif;
+  --color-exito: var(--exito);
+  --color-aviso: var(--aviso);
+  --color-peligro: var(--peligro);
+  --color-ring: var(--ring);
+
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+  /* Sombras suaves y profundas para la jerarquía (tarjetas, resumen, barras) */
+  --shadow-suave: 0 1px 2px 0 rgb(var(--sombra) / 0.04), 0 6px 18px -10px rgb(var(--sombra) / 0.12);
+  --shadow-elevada: 0 2px 6px -2px rgb(var(--sombra) / 0.06), 0 22px 50px -22px rgb(var(--sombra) / 0.28);
+  --shadow-flotante: 0 8px 20px -8px rgb(var(--sombra) / 0.1), 0 36px 72px -30px rgb(var(--sombra) / 0.4);
+  --shadow-acento: inset 0 1px 0 rgb(255 255 255 / 0.2), 0 10px 26px -12px color-mix(in srgb, var(--accent) 80%, transparent);
 }
 
-html {
-  color-scheme: light;
-}
-html[data-theme="dark"] {
-  color-scheme: dark;
+@theme {
+  /* Resorte para lo que se toca; salida rápida para lo que aparece */
+  --ease-resorte: cubic-bezier(0.34, 1.36, 0.64, 1);
+  --ease-salida: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --animate-aparecer: aparecer 0.6s var(--ease-salida) both;
+  --animate-emerger: emerger 0.35s var(--ease-resorte) both;
+  --animate-salto: salto 0.45s var(--ease-resorte);
+  --animate-brillo: brillo 1.5s linear infinite;
+
+  @keyframes aparecer {
+    from {
+      opacity: 0;
+      translate: 0 12px;
+    }
+    to {
+      opacity: 1;
+      translate: 0 0;
+    }
+  }
+
+  @keyframes emerger {
+    from {
+      opacity: 0;
+      scale: 0.95;
+    }
+    to {
+      opacity: 1;
+      scale: 1;
+    }
+  }
+
+  /* Contador del carrito: salta al cambiar */
+  @keyframes salto {
+    0% {
+      scale: 1;
+    }
+    35% {
+      scale: 1.45;
+    }
+    100% {
+      scale: 1;
+    }
+  }
+
+  @keyframes brillo {
+    from {
+      background-position: 200% 0;
+    }
+    to {
+      background-position: -200% 0;
+    }
+  }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans);
-  transition: background-color 0.2s ease, color 0.2s ease;
+@layer base {
+  html {
+    color-scheme: light;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html[data-theme="dark"] {
+    color-scheme: dark;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01";
+    transition:
+      background-color 0.25s ease,
+      color 0.25s ease;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--accent) 22%, transparent);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  /*
+   * Campos que aún no usan los componentes nuevos: fondo de superficie, borde
+   * que reacciona y el anillo de foco. Con :where() no pesan: las clases de
+   * cada pantalla siguen mandando.
+   */
+  :where(input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"]), select, textarea)[class*="border"] {
+    background-color: var(--surface);
+    transition:
+      border-color 0.2s ease,
+      box-shadow 0.2s ease;
+  }
+
+  :where(input, select, textarea)[class*="border"]:hover {
+    border-color: var(--border-strong);
+  }
+
+  :where(input, select, textarea)[class*="border"]:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 15%, transparent);
+  }
+
+  :where(input[type="checkbox"], input[type="radio"]) {
+    accent-color: var(--accent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 }
+
+/* ---- Utilidades propias ---- */
+
+/* Vidrio esmerilado: solo para la barra flotante y las ofertas relámpago. */
+@utility vidrio {
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  backdrop-filter: blur(20px) saturate(1.5);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+}
+
+/* Marcador de carga con brillo que recorre el bloque. */
+@utility esqueleto {
+  background-image: linear-gradient(90deg, var(--surface-2) 25%, color-mix(in srgb, var(--border) 70%, var(--surface-2)) 50%, var(--surface-2) 75%);
+  background-size: 200% 100%;
+  animation: esqueleto-brillo 1.5s linear infinite;
+  border-radius: 0.875rem;
+}
+
+@keyframes esqueleto-brillo {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ---- Fondo: una luz muy suave detrás del contenido ---- */
 
 .decorative-shapes {
   position: fixed;
@@ -60,56 +252,24 @@ body {
   pointer-events: none;
 }
 
-.decorative-shapes::before,
-.decorative-shapes::after {
+.decorative-shapes::before {
   content: "";
   position: absolute;
+  top: -22rem;
+  left: 50%;
+  width: 70rem;
+  height: 40rem;
+  translate: -50% 0;
   border-radius: 9999px;
-  filter: blur(90px);
-  opacity: 0.35;
-}
-
-.decorative-shapes::before {
-  top: -12rem;
-  right: -8rem;
-  width: 28rem;
-  height: 28rem;
-  background: radial-gradient(circle, var(--accent), transparent 70%);
-}
-
-.decorative-shapes::after {
-  bottom: -14rem;
-  left: -10rem;
-  width: 32rem;
-  height: 32rem;
-  background: radial-gradient(circle, var(--accent-2), transparent 70%);
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--accent) 9%, transparent), transparent);
+  filter: blur(40px);
 }
 
 .decorative-shape-mid {
-  position: absolute;
-  top: 35%;
-  left: 55%;
-  width: 24rem;
-  height: 24rem;
-  border-radius: 9999px;
-  background: radial-gradient(circle, var(--accent-3), transparent 70%);
-  filter: blur(100px);
-  opacity: 0.22;
-}
-
-:root[data-theme="dark"] .decorative-shapes::before,
-:root[data-theme="dark"] .decorative-shapes::after,
-:root[data-theme="dark"] .decorative-shape-mid {
-  opacity: 0.28;
-}
-
-.no-scrollbar {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-.no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* ---- Clases heredadas: ya usan los tokens; se retiran al migrar cada pantalla ---- */
 
 .brand-gradient-text {
   background-image: linear-gradient(90deg, var(--accent), var(--accent-3), var(--accent-2));
@@ -119,47 +279,50 @@ body {
 }
 
 .btn-primary {
-  background-image: linear-gradient(135deg, var(--accent), var(--accent-3));
-  color: #ffffff;
-  font-weight: 700;
-  box-shadow: 0 10px 24px -10px color-mix(in srgb, var(--accent) 60%, transparent);
+  background-color: var(--accent);
+  color: var(--accent-foreground);
+  font-weight: 600;
+  box-shadow: var(--shadow-acento);
   transition:
-    transform 0.15s ease,
-    box-shadow 0.15s ease;
+    transform 0.2s var(--ease-resorte),
+    box-shadow 0.2s ease,
+    filter 0.2s ease;
 }
 
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 14px 28px -10px color-mix(in srgb, var(--accent) 70%, transparent);
+  filter: brightness(1.06);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
 .product-card {
   border: 1px solid var(--border);
-  border-radius: 1.25rem;
+  border-radius: 1.5rem;
   overflow: hidden;
+  background: var(--surface);
+  box-shadow: var(--shadow-suave);
   transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease,
-    border-color 0.2s ease;
+    transform 0.35s var(--ease-salida),
+    box-shadow 0.35s var(--ease-salida),
+    border-color 0.35s var(--ease-salida);
 }
 
 .product-card:hover {
   transform: translateY(-4px);
-  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
-  box-shadow: 0 20px 40px -20px color-mix(in srgb, var(--foreground) 25%, transparent);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-elevada);
 }
 
 .product-media {
-  background-image: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--accent) 18%, var(--muted)),
-    color-mix(in srgb, var(--accent-2) 14%, var(--muted))
-  );
+  background-color: var(--surface-2);
 }
 
 .badge-new {
-  background-image: linear-gradient(90deg, var(--accent), var(--accent-3));
-  color: #ffffff;
+  background-color: var(--foreground);
+  color: var(--background);
 }
 
 @keyframes flash-deal-in {
@@ -174,5 +337,5 @@ body {
 }
 
 .animate-flash-in {
-  animation: flash-deal-in 0.45s ease-out;
+  animation: flash-deal-in 0.45s var(--ease-salida);
 }

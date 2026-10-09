@@ -1,4 +1,5 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
@@ -10,6 +11,17 @@ import { LocaleEffect } from "@/components/layout/LocaleEffect";
 export const metadata: Metadata = {
   title: "Tienda Virtual",
   description: "Tienda virtual de productos físicos con pagos por Wompi.",
+};
+
+// Plus Jakarta Sans: sans-serif comercial de alta gama, muy legible en celular.
+const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-jakarta", display: "swap" });
+
+export const viewport: Viewport = {
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fbfaf8" },
+    { media: "(prefers-color-scheme: dark)", color: "#0e0d11" },
+  ],
 };
 
 // Se aplica el tema guardado antes de la primera pintura, para evitar el
@@ -26,7 +38,7 @@ const themeInitScript = `
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className="h-full antialiased" suppressHydrationWarning>
+    <html lang="es" className={`${jakarta.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
