@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useAuthStore } from "@/store/auth.store";
 import { useT } from "@/lib/i18n";
@@ -37,8 +38,11 @@ function OAuthCallbackInner() {
   }, [code]);
 
   return (
-    <div className="mx-auto max-w-sm px-4 py-16 text-center sm:px-6">
-      <p className="text-muted-foreground">{error ?? t("oauthCallback.signingIn")}</p>
+    <div className="mx-auto flex max-w-sm flex-col items-center gap-4 px-4 py-24 text-center sm:px-6">
+      {error ? null : <Loader2 size={28} aria-hidden className="animate-spin text-muted-foreground" />}
+      <p role={error ? "alert" : "status"} className={error ? "rounded-2xl bg-peligro/10 px-4 py-3 text-sm font-medium text-peligro" : "text-muted-foreground"}>
+        {error ?? t("oauthCallback.signingIn")}
+      </p>
     </div>
   );
 }

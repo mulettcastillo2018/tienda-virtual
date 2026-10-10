@@ -1,15 +1,64 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, KeyRound, MapPin, MessageSquareText, Package, Pencil, Truck, UserRound, type LucideIcon } from "lucide-react";
 import { apiFetch, ApiError, uploadFile } from "@/lib/api";
 import { useAuthStore } from "@/store/auth.store";
 import { useToastStore } from "@/store/toast.store";
 import { AddressForm, type AddressFormValues } from "@/components/AddressForm";
 import { PqrsTimeline } from "@/components/PqrsTimeline";
 import { useT, useLocale } from "@/lib/i18n";
+import { cn } from "@/lib/cn";
+import { ORDER_STATUS_TONE, PQRS_STATUS_TONE } from "@/lib/statusTones";
+import { Badge } from "@/components/ui/Badge";
+import { Button, buttonStyles } from "@/components/ui/Button";
+import { Container } from "@/components/ui/Container";
+import { Field, Input, inputStyles, Select, Textarea } from "@/components/ui/Field";
+import { Skeleton } from "@/components/ui/Skeleton";
 import type { Order, Pqrs, PqrsType, ShippingAddress, UserProfile } from "@/lib/types";
+
+// Tarjeta de cada sección de la cuenta, con ancla para la navegación lateral.
+function AccountSection({
+  id,
+  icon: Icon,
+  title,
+  action,
+  children,
+}: {
+  id: string;
+  icon: LucideIcon;
+  title: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section id={id} className="scroll-mt-28 rounded-[2rem] border border-border bg-surface p-5 shadow-suave sm:p-7">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="flex items-center gap-3 text-lg font-bold tracking-tight">
+          <span className="flex size-9 items-center justify-center rounded-full bg-surface-2 text-foreground/80">
+            <Icon size={17} aria-hidden />
+          </span>
+          {title}
+        </h2>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function Alert({ children }: { children: ReactNode }) {
+  return (
+    <p role="alert" className="mb-4 rounded-2xl bg-peligro/10 px-4 py-3 text-sm font-medium text-peligro">
+      {children}
+    </p>
+  );
+}
+
+function EmptyNote({ children }: { children: ReactNode }) {
+  return <p className="rounded-2xl border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">{children}</p>;
+}
 
 function formatCOP(amount: number) {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" }).format(amount);
@@ -213,377 +262,413 @@ export default function AccountPage() {
 
   if (!token || !authUser) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-10 text-center sm:px-6">
-        <p className="text-muted-foreground">{t("account.loginRequired")}</p>
-        <Link href="/login" className="btn-primary mt-4 inline-block rounded-full px-4 py-2 text-sm">
-          {t("account.login")}
-        </Link>
-      </div>
+      <Container width="narrow" className="py-16 sm:py-24">
+        <div className="flex flex-col items-center rounded-[2rem] border border-border bg-surface px-6 py-12 text-center shadow-suave">
+          <span className="flex size-16 items-center justify-center rounded-2xl bg-surface-2 text-foreground/80">
+            <UserRound size={28} aria-hidden />
+          </span>
+          <p className="mt-5 max-w-xs text-muted-foreground">{t("account.loginRequired")}</p>
+          <Link href="/login" className={cn(buttonStyles({ variant: "dark" }), "mt-6")}>
+            {t("account.login")}
+          </Link>
+        </div>
+      </Container>
     );
   }
 
+  const sections = [
+    { id: "compras", label: t("account.myOrders"), Icon: Package },
+    { id: "pqrs", label: t("account.pqrsTitle"), Icon: MessageSquareText },
+    { id: "direcciones", label: t("account.myAddresses"), Icon: MapPin },
+    { id: "datos", label: t("account.accountData"), Icon: UserRound },
+    { id: "seguridad", label: t("account.security"), Icon: KeyRound },
+  ];
+  const email = profile?.email ?? authUser.email;
+
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
-      <h1 className="text-3xl font-extrabold tracking-tight">{t("account.title")}</h1>
+    <Container className="max-w-6xl pt-6 pb-16 sm:pt-10">
+      {/* Encabezado: inicial, nombre de la cuenta y antigüedad */}
+      <div className="mb-8 flex items-center gap-4 px-1">
+        <span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-foreground text-xl font-bold text-background uppercase shadow-elevada sm:size-16">
+          {email.charAt(0)}
+        </span>
+        <div className="min-w-0">
+          <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">{t("account.title")}</h1>
+          <p className="truncate text-sm text-muted-foreground">
+            {email}
+            {profile ? <> · {t("account.customerSince", { date: formatDate(profile.createdAt, locale) })}</> : null}
+          </p>
+        </div>
+      </div>
 
-      {loading ? <p className="mt-4 text-muted-foreground">{t("account.loading")}</p> : null}
-      {error ? <p className="mt-4 text-red-600">{error}</p> : null}
-
-      {!loading && !error ? (
-        <div className="mt-6 space-y-10">
-          <section className="rounded-xl border border-border p-4">
-            <h2 className="text-lg font-bold">{t("account.accountData")}</h2>
-            <p className="mt-2 text-sm text-muted-foreground">{profile?.email}</p>
-            {profile?.phone ? (
-              <p className="mt-1 text-sm text-muted-foreground">{profile.phone}</p>
-            ) : (
-              <div className="mt-3 rounded-lg bg-muted p-3">
-                <p className="text-sm font-semibold">{t("account.missingPhone")}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{t("account.missingPhoneHint")}</p>
-                {phoneError ? <p className="mt-1 text-sm text-red-600">{phoneError}</p> : null}
-                <form onSubmit={handleSavePhone} className="mt-2 flex flex-wrap gap-2">
-                  <input
-                    name="phone"
-                    type="tel"
-                    required
-                    minLength={7}
-                    placeholder={t("account.phonePlaceholder")}
-                    className="rounded-lg border border-border px-3 py-1.5 text-sm"
-                  />
-                  <button
-                    type="submit"
-                    disabled={savingPhone}
-                    className="btn-primary rounded-full px-4 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {savingPhone ? t("account.saving") : t("account.save")}
-                  </button>
-                </form>
-              </div>
-            )}
-            <p className="mt-1 text-sm text-muted-foreground">
-              {t("account.customerSince", { date: profile ? formatDate(profile.createdAt, locale) : "—" })}
-            </p>
-          </section>
-
-          <section className="rounded-xl border border-border p-4">
-            <h2 className="text-lg font-bold">{t("account.security")}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{t("account.changePasswordHint")}</p>
-            {passwordError ? <p className="mt-2 text-sm text-red-600">{passwordError}</p> : null}
-            <form onSubmit={handleChangePassword} className="mt-3 max-w-sm space-y-3">
-              <input
-                type="password"
-                name="currentPassword"
-                placeholder={t("account.currentPassword")}
-                required
-                className="w-full rounded-lg border border-border px-3 py-2 text-sm"
-              />
-              <input
-                type="password"
-                name="newPassword"
-                placeholder={t("account.newPassword")}
-                required
-                minLength={8}
-                className="w-full rounded-lg border border-border px-3 py-2 text-sm"
-              />
-              <input
-                type="password"
-                name="confirmPassword"
-                placeholder={t("account.confirmNewPassword")}
-                required
-                minLength={8}
-                className="w-full rounded-lg border border-border px-3 py-2 text-sm"
-              />
-              <button
-                type="submit"
-                disabled={changingPassword}
-                className="btn-primary rounded-full px-6 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {changingPassword ? t("account.saving") : t("account.changePassword")}
-              </button>
-            </form>
-          </section>
-
-          <section>
-            <h2 className="text-lg font-bold">{t("account.myAddresses")}</h2>
-            {addressError ? <p className="mt-2 text-sm text-red-600">{addressError}</p> : null}
-            {addresses.length === 0 ? (
-              <p className="mt-2 text-sm text-muted-foreground">{t("account.noAddresses")}</p>
-            ) : (
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                {addresses.map((address) =>
-                  editingAddressId === address.id ? (
-                    <div key={address.id} className="rounded-xl border border-border p-4">
-                      <AddressForm
-                        submitLabel={t("account.saveChanges")}
-                        loading={savingAddress}
-                        initialValues={{
-                          fullName: address.fullName,
-                          addressLine1: address.addressLine1,
-                          addressLine2: address.addressLine2 ?? "",
-                          city: address.city,
-                          state: address.state,
-                          postalCode: address.postalCode,
-                          phone: address.phone,
-                        }}
-                        onSubmit={(values) => handleSaveAddress(address.id, values)}
-                        onCancel={() => setEditingAddressId(null)}
-                      />
-                    </div>
-                  ) : (
-                    <div key={address.id} className="rounded-xl border border-border p-4 text-sm">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="font-semibold">{address.fullName}</p>
-                          <p className="text-muted-foreground">
-                            {address.addressLine1}
-                            {address.addressLine2 ? `, ${address.addressLine2}` : ""}
-                          </p>
-                          <p className="text-muted-foreground">
-                            {address.city}, {address.state}
-                          </p>
-                          <p className="text-muted-foreground">{address.phone}</p>
-                        </div>
-                        <button
-                          onClick={() => setEditingAddressId(address.id)}
-                          className="shrink-0 text-sm font-semibold text-accent"
-                        >
-                          {t("account.edit")}
-                        </button>
-                      </div>
-                      {address.updatedAt !== address.createdAt ? (
-                        <p className="mt-2 text-xs text-muted-foreground">
-                          {t("account.lastModified", { date: formatDate(address.updatedAt, locale) })}
-                        </p>
-                      ) : null}
-                    </div>
-                  )
-                )}
-              </div>
-            )}
-          </section>
-
-          <section>
-            <h2 className="text-lg font-bold">{t("account.myOrders")}</h2>
-            {orders.length === 0 ? (
-              <p className="mt-2 text-sm text-muted-foreground">{t("account.noOrders")}</p>
-            ) : (
-              <div className="mt-3 space-y-2">
-                {orders.map((order) => {
-                  const expanded = expandedOrders.has(order.id);
-                  return (
-                    <div key={order.id} className="rounded-xl border border-border">
-                      <button
-                        onClick={() => toggleOrder(order.id)}
-                        className="flex w-full flex-wrap items-center justify-between gap-2 p-4 text-left"
-                      >
-                        <div>
-                          <p className="font-semibold">{t("account.orderNumber", { id: order.id.slice(-8) })}</p>
-                          <p className="text-sm text-muted-foreground">{formatDate(order.createdAt, locale)}</p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm font-bold">{formatCOP(order.totalAmount)}</span>
-                          <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">
-                            {t(`orderStatus.${order.status}`)}
-                          </span>
-                          <ChevronDown
-                            size={18}
-                            className={`text-muted-foreground transition-transform ${expanded ? "rotate-180" : ""}`}
-                          />
-                        </div>
-                      </button>
-
-                      {expanded ? (
-                        <div className="border-t border-border p-4 pt-3">
-                          <ul className="space-y-1 text-sm">
-                            {order.items.map((item) => (
-                              <li key={item.id} className="text-muted-foreground">
-                                {item.quantity}× {item.product?.name ?? t("account.unnamedProduct")} — {formatCOP(item.priceAtPurchase)}
-                                {item.discountLog ? (
-                                  <span className="ml-1 text-xs text-accent">
-                                    {t("account.includedDiscount", { percent: item.discountLog.discountPercentage })}
-                                  </span>
-                                ) : null}
-                              </li>
-                            ))}
-                          </ul>
-                          <p className="mt-2 text-sm text-muted-foreground">
-                            {t("account.shippingCost", { amount: formatCOP(order.shippingCost) })}
-                          </p>
-                          <p className="mt-1 text-sm font-bold">{t("account.total", { amount: formatCOP(order.totalAmount) })}</p>
-                          {order.status === "PENDING" ? (
-                            <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg bg-accent/5 p-3 text-sm">
-                              {order.expiresAt ? (
-                                <span className="text-muted-foreground">
-                                  {t("account.payBefore", {
-                                    time: new Intl.DateTimeFormat(locale === "en" ? "en-US" : "es-CO", { dateStyle: "medium", timeStyle: "short" }).format(new Date(order.expiresAt)),
-                                  })}
-                                </span>
-                              ) : null}
-                              <Link href={`/checkout/result?orderId=${order.id}`} className="btn-primary rounded-full px-4 py-1.5 text-sm">
-                                {t("account.payNow")}
-                              </Link>
-                            </div>
-                          ) : null}
-                          {order.trackingNumber ? (
-                            <p className="mt-2 text-sm text-muted-foreground">
-                              {t("account.shippedBy", { carrier: order.carrier ?? "", tracking: order.trackingNumber })}
-                            </p>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-
-          <section>
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold">{t("account.pqrsTitle")}</h2>
-              {!showPqrsForm ? (
-                <button onClick={() => setShowPqrsForm(true)} className="text-sm font-semibold text-accent">
-                  {t("account.newRequest")}
-                </button>
-              ) : null}
-            </div>
-
-            {showPqrsForm ? (
-              <form onSubmit={handleCreatePqrs} className="mt-3 space-y-3 rounded-xl border border-border p-4">
-                {pqrsError ? <p className="text-sm text-red-600">{pqrsError}</p> : null}
-                <select name="type" required className="w-full rounded-lg border border-border px-3 py-2 text-sm">
-                  {(["PETICION", "QUEJA", "RECLAMO", "SUGERENCIA"] as PqrsType[]).map((value) => (
-                    <option key={value} value={value}>
-                      {t(`pqrsType.${value}`)}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  name="subject"
-                  placeholder={t("account.subject")}
-                  required
-                  className="w-full rounded-lg border border-border px-3 py-2 text-sm"
-                />
-                <textarea
-                  name="message"
-                  placeholder={t("account.messagePlaceholder")}
-                  required
-                  rows={3}
-                  className="w-full rounded-lg border border-border px-3 py-2 text-sm"
-                />
-                {orders.length > 0 ? (
-                  <select name="orderId" className="w-full rounded-lg border border-border px-3 py-2 text-sm">
-                    <option value="">{t("account.relateToOrderOptional")}</option>
-                    {orders.map((order) => (
-                      <option key={order.id} value={order.id}>
-                        {t("account.orderNumber", { id: order.id.slice(-8) })} — {formatDate(order.createdAt, locale)}
-                      </option>
-                    ))}
-                  </select>
-                ) : null}
-                <label className="block text-sm text-muted-foreground">
-                  {t("account.attachmentLabel")}
-                  <input
-                    type="file"
-                    accept="image/*,video/mp4,video/webm,video/quicktime"
-                    onChange={(e) => setPqrsAttachment(e.target.files?.[0] ?? null)}
-                    className="mt-1 block w-full text-sm"
-                  />
-                </label>
-                <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    disabled={submittingPqrs}
-                    className="btn-primary rounded-full px-6 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {uploadingAttachment ? t("account.uploadingAttachment") : submittingPqrs ? t("account.sending") : t("account.sendRequest")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowPqrsForm(false)}
-                    className="rounded-full border border-border px-6 py-2 text-sm text-muted-foreground"
-                  >
-                    {t("account.cancel")}
-                  </button>
-                </div>
-              </form>
-            ) : null}
-
-            {pqrsList.length === 0 ? (
-              <p className="mt-2 text-sm text-muted-foreground">{t("account.noPqrs")}</p>
-            ) : (
-              <div className="mt-3 space-y-2">
-                {pqrsList.map((pqrs) => {
-                  const expanded = expandedPqrs.has(pqrs.id);
-                  return (
-                    <div key={pqrs.id} className="rounded-xl border border-border">
-                      <button
-                        onClick={() => togglePqrs(pqrs.id)}
-                        className="flex w-full flex-wrap items-center justify-between gap-2 p-4 text-left"
-                      >
-                        <div>
-                          <p className="font-semibold">
-                            {t(`pqrsType.${pqrs.type}`)}: {pqrs.subject}
-                          </p>
-                          <p className="text-sm text-muted-foreground">{formatDate(pqrs.createdAt, locale)}</p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">
-                            {t(`pqrsStatus.${pqrs.status}`)}
-                          </span>
-                          <ChevronDown
-                            size={18}
-                            className={`text-muted-foreground transition-transform ${expanded ? "rotate-180" : ""}`}
-                          />
-                        </div>
-                      </button>
-
-                      {expanded ? (
-                        <div className="border-t border-border p-4 pt-3 text-sm">
-                          <p className="text-muted-foreground">{pqrs.message}</p>
-                          {pqrs.attachmentUrl ? (
-                            <a
-                              href={pqrs.attachmentUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="mt-1 inline-block text-xs font-semibold text-accent underline"
-                            >
-                              {t("account.viewAttachment")}
-                            </a>
-                          ) : null}
-
-                          <div className="mt-4">
-                            <PqrsTimeline pqrs={pqrs} />
-                          </div>
-
-                          {pqrs.response ? (
-                            <div className="mt-3 rounded-lg bg-muted p-3">
-                              <p className="font-semibold">{t("account.response")}</p>
-                              <p className="mt-1 text-muted-foreground">{pqrs.response}</p>
-                              {pqrs.responseAttachmentUrl ? (
-                                <a
-                                  href={pqrs.responseAttachmentUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="mt-1 inline-block text-xs font-semibold text-accent underline"
-                                >
-                                  {t("account.viewResponseAttachment")}
-                                </a>
-                              ) : null}
-                            </div>
-                          ) : (
-                            <p className="mt-3 text-muted-foreground">{t("account.noResponseYet")}</p>
-                          )}
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
+      {loading ? (
+        <div className="grid gap-4">
+          <p role="status" className="sr-only">
+            {t("account.loading")}
+          </p>
+          <Skeleton className="h-40 rounded-[2rem]" />
+          <Skeleton className="h-56 rounded-[2rem]" />
         </div>
       ) : null}
-    </div>
+      {error ? <Alert>{error}</Alert> : null}
+
+      {!loading && !error ? (
+        <div className="grid gap-6 lg:grid-cols-[14rem_minmax(0,1fr)] lg:items-start lg:gap-8">
+          {/* Secciones: fila deslizable en celular, columna fija en escritorio */}
+          <nav className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 lg:sticky lg:top-24 lg:mx-0 lg:flex-col lg:gap-1 lg:overflow-visible lg:px-0">
+            {sections.map(({ id, label, Icon }) => (
+              <a
+                key={id}
+                href={`#${id}`}
+                className="flex shrink-0 items-center gap-2.5 rounded-full border border-border bg-surface px-4 py-2 text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors duration-200 hover:text-foreground lg:rounded-xl lg:border-transparent lg:bg-transparent lg:px-3 lg:whitespace-normal lg:hover:bg-surface-2"
+              >
+                <Icon size={16} aria-hidden className="shrink-0" />
+                {label}
+              </a>
+            ))}
+          </nav>
+
+          <div className="grid min-w-0 gap-6">
+            <AccountSection id="compras" icon={Package} title={t("account.myOrders")}>
+              {orders.length === 0 ? (
+                <EmptyNote>{t("account.noOrders")}</EmptyNote>
+              ) : (
+                <ul className="grid gap-2.5">
+                  {orders.map((order) => {
+                    const expanded = expandedOrders.has(order.id);
+                    return (
+                      <li key={order.id} className="overflow-hidden rounded-2xl border border-border bg-background">
+                        <button
+                          onClick={() => toggleOrder(order.id)}
+                          aria-expanded={expanded}
+                          className="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2 p-4 text-left transition-colors duration-200 hover:bg-surface-2/60"
+                        >
+                          <div>
+                            <p className="font-semibold">{t("account.orderNumber", { id: order.id.slice(-8) })}</p>
+                            <p className="text-sm text-muted-foreground">{formatDate(order.createdAt, locale)}</p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm font-bold tabular-nums">{formatCOP(order.totalAmount)}</span>
+                            <Badge tone={ORDER_STATUS_TONE[order.status]}>{t(`orderStatus.${order.status}`)}</Badge>
+                            <ChevronDown
+                              size={18}
+                              aria-hidden
+                              className={cn("text-muted-foreground transition-[rotate] duration-300 ease-salida", expanded && "rotate-180")}
+                            />
+                          </div>
+                        </button>
+
+                        {expanded ? (
+                          <div className="animate-aparecer border-t border-border p-4">
+                            <ul className="grid gap-2 text-sm">
+                              {order.items.map((item) => (
+                                <li key={item.id} className="flex flex-wrap items-baseline justify-between gap-x-4">
+                                  <span className="text-muted-foreground">
+                                    <span className="font-semibold text-foreground tabular-nums">{item.quantity}×</span>{" "}
+                                    {item.product?.name ?? t("account.unnamedProduct")}
+                                    {item.discountLog ? (
+                                      <span className="ml-1 text-xs text-accent">
+                                        {t("account.includedDiscount", { percent: item.discountLog.discountPercentage })}
+                                      </span>
+                                    ) : null}
+                                  </span>
+                                  <span className="tabular-nums">{formatCOP(item.priceAtPurchase)}</span>
+                                </li>
+                              ))}
+                            </ul>
+                            <div className="mt-3 grid gap-1 border-t border-border pt-3 text-sm">
+                              <p className="text-muted-foreground">{t("account.shippingCost", { amount: formatCOP(order.shippingCost) })}</p>
+                              <p className="font-bold">{t("account.total", { amount: formatCOP(order.totalAmount) })}</p>
+                            </div>
+                            {order.status === "PENDING" ? (
+                              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-aviso/10 p-3 text-sm">
+                                {order.expiresAt ? (
+                                  <span className="font-medium text-aviso">
+                                    {t("account.payBefore", {
+                                      time: new Intl.DateTimeFormat(locale === "en" ? "en-US" : "es-CO", { dateStyle: "medium", timeStyle: "short" }).format(new Date(order.expiresAt)),
+                                    })}
+                                  </span>
+                                ) : null}
+                                <Link href={`/checkout/result?orderId=${order.id}`} className={buttonStyles({ size: "sm" })}>
+                                  {t("account.payNow")}
+                                </Link>
+                              </div>
+                            ) : null}
+                            {order.trackingNumber ? (
+                              <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+                                <Truck size={16} aria-hidden className="shrink-0" />
+                                {t("account.shippedBy", { carrier: order.carrier ?? "", tracking: order.trackingNumber })}
+                              </p>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </AccountSection>
+
+            <AccountSection
+              id="pqrs"
+              icon={MessageSquareText}
+              title={t("account.pqrsTitle")}
+              action={
+                !showPqrsForm ? (
+                  <Button variant="secondary" size="sm" onClick={() => setShowPqrsForm(true)}>
+                    {t("account.newRequest")}
+                  </Button>
+                ) : null
+              }
+            >
+              {showPqrsForm ? (
+                <form onSubmit={handleCreatePqrs} className="animate-aparecer mb-5 grid gap-4 rounded-2xl border border-border bg-background p-4 sm:p-5">
+                  {pqrsError ? <Alert>{pqrsError}</Alert> : null}
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label={t("account.requestType")}>
+                      {(control) => (
+                        <Select {...control} name="type" required>
+                          {(["PETICION", "QUEJA", "RECLAMO", "SUGERENCIA"] as PqrsType[]).map((value) => (
+                            <option key={value} value={value}>
+                              {t(`pqrsType.${value}`)}
+                            </option>
+                          ))}
+                        </Select>
+                      )}
+                    </Field>
+                    <Field label={t("account.subject")}>{(control) => <Input {...control} name="subject" required />}</Field>
+                  </div>
+                  <Field label={t("account.messagePlaceholder")}>
+                    {(control) => <Textarea {...control} name="message" required rows={3} />}
+                  </Field>
+                  {orders.length > 0 ? (
+                    <Field label={t("account.relateToOrderOptional")}>
+                      {(control) => (
+                        <Select {...control} name="orderId">
+                          <option value="">—</option>
+                          {orders.map((order) => (
+                            <option key={order.id} value={order.id}>
+                              {t("account.orderNumber", { id: order.id.slice(-8) })} — {formatDate(order.createdAt, locale)}
+                            </option>
+                          ))}
+                        </Select>
+                      )}
+                    </Field>
+                  ) : null}
+                  <Field label={t("account.attachmentLabel")}>
+                    {(control) => (
+                      <input
+                        {...control}
+                        type="file"
+                        accept="image/*,video/mp4,video/webm,video/quicktime"
+                        onChange={(e) => setPqrsAttachment(e.target.files?.[0] ?? null)}
+                        className={cn(
+                          inputStyles,
+                          "h-12 py-2 text-muted-foreground file:mr-3 file:h-full file:cursor-pointer file:rounded-lg file:border-0 file:bg-surface-2 file:px-3 file:text-sm file:font-semibold file:text-foreground",
+                        )}
+                      />
+                    )}
+                  </Field>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="submit" variant="dark" loading={submittingPqrs}>
+                      {uploadingAttachment ? t("account.uploadingAttachment") : submittingPqrs ? t("account.sending") : t("account.sendRequest")}
+                    </Button>
+                    <Button variant="ghost" onClick={() => setShowPqrsForm(false)}>
+                      {t("account.cancel")}
+                    </Button>
+                  </div>
+                </form>
+              ) : null}
+
+              {pqrsList.length === 0 ? (
+                <EmptyNote>{t("account.noPqrs")}</EmptyNote>
+              ) : (
+                <ul className="grid gap-2.5">
+                  {pqrsList.map((pqrs) => {
+                    const expanded = expandedPqrs.has(pqrs.id);
+                    return (
+                      <li key={pqrs.id} className="overflow-hidden rounded-2xl border border-border bg-background">
+                        <button
+                          onClick={() => togglePqrs(pqrs.id)}
+                          aria-expanded={expanded}
+                          className="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2 p-4 text-left transition-colors duration-200 hover:bg-surface-2/60"
+                        >
+                          <div className="min-w-0">
+                            <p className="font-semibold">
+                              {t(`pqrsType.${pqrs.type}`)}: {pqrs.subject}
+                            </p>
+                            <p className="text-sm text-muted-foreground">{formatDate(pqrs.createdAt, locale)}</p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Badge tone={PQRS_STATUS_TONE[pqrs.status]}>{t(`pqrsStatus.${pqrs.status}`)}</Badge>
+                            <ChevronDown
+                              size={18}
+                              aria-hidden
+                              className={cn("text-muted-foreground transition-[rotate] duration-300 ease-salida", expanded && "rotate-180")}
+                            />
+                          </div>
+                        </button>
+
+                        {expanded ? (
+                          <div className="animate-aparecer border-t border-border p-4 text-sm">
+                            <p className="leading-relaxed text-muted-foreground">{pqrs.message}</p>
+                            {pqrs.attachmentUrl ? (
+                              <a
+                                href={pqrs.attachmentUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="mt-2 inline-block text-xs font-semibold underline underline-offset-4"
+                              >
+                                {t("account.viewAttachment")}
+                              </a>
+                            ) : null}
+
+                            <div className="mt-5">
+                              <PqrsTimeline pqrs={pqrs} />
+                            </div>
+
+                            {pqrs.response ? (
+                              <div className="mt-4 rounded-2xl bg-surface-2 p-4">
+                                <p className="font-semibold">{t("account.response")}</p>
+                                <p className="mt-1 leading-relaxed text-muted-foreground">{pqrs.response}</p>
+                                {pqrs.responseAttachmentUrl ? (
+                                  <a
+                                    href={pqrs.responseAttachmentUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="mt-2 inline-block text-xs font-semibold underline underline-offset-4"
+                                  >
+                                    {t("account.viewResponseAttachment")}
+                                  </a>
+                                ) : null}
+                              </div>
+                            ) : (
+                              <p className="mt-4 text-muted-foreground">{t("account.noResponseYet")}</p>
+                            )}
+                          </div>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </AccountSection>
+
+            <AccountSection id="direcciones" icon={MapPin} title={t("account.myAddresses")}>
+              {addressError ? <Alert>{addressError}</Alert> : null}
+              {addresses.length === 0 ? (
+                <EmptyNote>{t("account.noAddresses")}</EmptyNote>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {addresses.map((address) =>
+                    editingAddressId === address.id ? (
+                      <div key={address.id} className="animate-aparecer rounded-2xl border border-border bg-background p-4 sm:col-span-2 sm:p-5">
+                        <AddressForm
+                          submitLabel={t("account.saveChanges")}
+                          loading={savingAddress}
+                          initialValues={{
+                            fullName: address.fullName,
+                            addressLine1: address.addressLine1,
+                            addressLine2: address.addressLine2 ?? "",
+                            city: address.city,
+                            state: address.state,
+                            postalCode: address.postalCode,
+                            phone: address.phone,
+                          }}
+                          onSubmit={(values) => handleSaveAddress(address.id, values)}
+                          onCancel={() => setEditingAddressId(null)}
+                        />
+                      </div>
+                    ) : (
+                      <div key={address.id} className="flex flex-col rounded-2xl border border-border bg-background p-4 text-sm">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-semibold">{address.fullName}</p>
+                            <p className="text-muted-foreground">
+                              {address.addressLine1}
+                              {address.addressLine2 ? `, ${address.addressLine2}` : ""}
+                            </p>
+                            <p className="text-muted-foreground">
+                              {address.city}, {address.state}
+                            </p>
+                            <p className="text-muted-foreground">{address.phone}</p>
+                          </div>
+                          <Button variant="ghost" size="sm" onClick={() => setEditingAddressId(address.id)} className="-mt-1 -mr-1 shrink-0">
+                            <Pencil />
+                            {t("account.edit")}
+                          </Button>
+                        </div>
+                        {address.updatedAt !== address.createdAt ? (
+                          <p className="mt-3 text-xs text-muted-foreground">
+                            {t("account.lastModified", { date: formatDate(address.updatedAt, locale) })}
+                          </p>
+                        ) : null}
+                      </div>
+                    ),
+                  )}
+                </div>
+              )}
+            </AccountSection>
+
+            <AccountSection id="datos" icon={UserRound} title={t("account.accountData")}>
+              <dl className="grid gap-3 text-sm sm:grid-cols-2">
+                <div className="rounded-2xl bg-surface-2 p-4">
+                  <dt className="text-xs text-muted-foreground">{t("login.email")}</dt>
+                  <dd className="mt-1 truncate font-medium">{profile?.email}</dd>
+                </div>
+                {profile?.phone ? (
+                  <div className="rounded-2xl bg-surface-2 p-4">
+                    <dt className="text-xs text-muted-foreground">{t("login.phone")}</dt>
+                    <dd className="mt-1 font-medium">{profile.phone}</dd>
+                  </div>
+                ) : null}
+              </dl>
+              {!profile?.phone ? (
+                <div className="mt-4 rounded-2xl bg-aviso/10 p-4">
+                  <p className="text-sm font-semibold text-aviso">{t("account.missingPhone")}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{t("account.missingPhoneHint")}</p>
+                  {phoneError ? <p className="mt-2 text-sm font-medium text-peligro">{phoneError}</p> : null}
+                  <form onSubmit={handleSavePhone} className="mt-3 flex flex-wrap gap-2">
+                    <Input
+                      name="phone"
+                      type="tel"
+                      required
+                      minLength={7}
+                      placeholder={t("account.phonePlaceholder")}
+                      aria-label={t("login.phone")}
+                      className="h-11 w-auto min-w-0 flex-1 sm:max-w-xs"
+                    />
+                    <Button type="submit" variant="dark" loading={savingPhone}>
+                      {savingPhone ? t("account.saving") : t("account.save")}
+                    </Button>
+                  </form>
+                </div>
+              ) : null}
+            </AccountSection>
+
+            <AccountSection id="seguridad" icon={KeyRound} title={t("account.security")}>
+              <p className="-mt-2 mb-4 text-sm text-muted-foreground">{t("account.changePasswordHint")}</p>
+              {passwordError ? <Alert>{passwordError}</Alert> : null}
+              <form onSubmit={handleChangePassword} className="grid max-w-md gap-4">
+                <Field label={t("account.currentPassword")}>
+                  {(control) => <Input {...control} type="password" name="currentPassword" autoComplete="current-password" required />}
+                </Field>
+                <Field label={t("account.newPassword")}>
+                  {(control) => <Input {...control} type="password" name="newPassword" autoComplete="new-password" required minLength={8} />}
+                </Field>
+                <Field label={t("account.confirmNewPassword")}>
+                  {(control) => <Input {...control} type="password" name="confirmPassword" autoComplete="new-password" required minLength={8} />}
+                </Field>
+                <div>
+                  <Button type="submit" variant="dark" loading={changingPassword}>
+                    {changingPassword ? t("account.saving") : t("account.changePassword")}
+                  </Button>
+                </div>
+              </form>
+            </AccountSection>
+          </div>
+        </div>
+      ) : null}
+    </Container>
   );
 }

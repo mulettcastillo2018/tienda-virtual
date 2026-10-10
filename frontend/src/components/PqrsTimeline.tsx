@@ -24,7 +24,7 @@ function AttachmentPreview({ url, label }: { url: string; label: string }) {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="mt-2 flex items-center gap-1 text-xs font-semibold text-accent underline"
+      className="mt-2 flex items-center gap-1 text-xs font-semibold underline underline-offset-4"
     >
       {kind === "video" ? <FileVideo size={14} /> : <FileImage size={14} />}
       {label}
@@ -70,23 +70,23 @@ export function PqrsTimeline({ pqrs, interactive, selectedStatus, onSelectStatus
           return (
             <div key={status} className="flex flex-1 flex-col items-center text-center">
               <div className="flex w-full items-center">
-                <div className={`h-0.5 flex-1 ${index === 0 ? "opacity-0" : reached ? "bg-accent" : "bg-border"}`} />
+                <div className={`h-0.5 flex-1 ${index === 0 ? "opacity-0" : reached ? "bg-exito" : "bg-border"}`} />
                 <Node
                   type={interactive ? "button" : undefined}
                   onClick={interactive && onSelectStatus ? () => onSelectStatus(status) : undefined}
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold transition-colors ${
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold transition-colors duration-300 ${
                     isCurrent
-                      ? "border-accent bg-accent text-accent-foreground"
+                      ? "border-foreground bg-foreground text-background"
                       : reached
-                        ? "border-accent bg-accent/20 text-accent"
+                        ? "border-exito bg-exito text-white dark:text-background"
                         : "border-border text-muted-foreground"
-                  } ${interactive ? "cursor-pointer hover:border-accent" : ""}`}
+                  } ${interactive ? "cursor-pointer hover:border-foreground" : ""}`}
                 >
-                  {reached && !isCurrent ? <Check size={16} /> : index + 1}
+                  {reached && !isCurrent ? <Check size={16} strokeWidth={3} /> : index + 1}
                 </Node>
                 <div
                   className={`h-0.5 flex-1 ${
-                    index === STATUS_ORDER.length - 1 ? "opacity-0" : reached && index < currentIndex ? "bg-accent" : "bg-border"
+                    index === STATUS_ORDER.length - 1 ? "opacity-0" : reached && index < currentIndex ? "bg-exito" : "bg-border"
                   }`}
                 />
               </div>
@@ -100,7 +100,7 @@ export function PqrsTimeline({ pqrs, interactive, selectedStatus, onSelectStatus
       </div>
 
       {/* Fecha límite */}
-      <p className={`mt-4 text-xs font-medium ${isOverdue ? "text-red-600" : "text-muted-foreground"}`}>
+      <p className={`mt-4 text-xs font-medium ${isOverdue ? "text-peligro" : "text-muted-foreground"}`}>
         {isOverdue ? t("pqrsTimeline.deadlineOverdue") : t("pqrsTimeline.deadline")}: {formatDate(pqrs.dueAt, locale)}
       </p>
 

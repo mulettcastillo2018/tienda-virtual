@@ -6,6 +6,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useToastStore } from "@/store/toast.store";
 import { useT } from "@/lib/i18n";
+import { AuthCard } from "@/components/ui/AuthCard";
+import { Button } from "@/components/ui/Button";
+import { Field, Input } from "@/components/ui/Field";
 
 function ResetPasswordForm() {
   const token = useSearchParams().get("token");
@@ -47,9 +50,9 @@ function ResetPasswordForm() {
 
   if (!token) {
     return (
-      <p className="mt-6 text-sm text-red-600">
+      <p role="alert" className="rounded-2xl bg-peligro/10 px-4 py-3 text-sm font-medium text-peligro">
         {t("resetPassword.invalidLink")}{" "}
-        <Link href="/forgot-password" className="underline">
+        <Link href="/forgot-password" className="underline underline-offset-4">
           {t("resetPassword.requestNew")}
         </Link>
         .
@@ -58,31 +61,21 @@ function ResetPasswordForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-      <input
-        name="newPassword"
-        type="password"
-        required
-        minLength={8}
-        placeholder={t("resetPassword.newPassword")}
-        className="w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-accent"
-      />
-      <input
-        name="confirmPassword"
-        type="password"
-        required
-        minLength={8}
-        placeholder={t("resetPassword.confirmPassword")}
-        className="w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-accent"
-      />
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
-      <button
-        type="submit"
-        disabled={loading}
-        className="btn-primary w-full rounded-full px-6 py-2.5 disabled:cursor-not-allowed disabled:opacity-50"
-      >
+    <form onSubmit={handleSubmit} className="grid gap-4">
+      <Field label={t("resetPassword.newPassword")}>
+        {(control) => <Input {...control} name="newPassword" type="password" required minLength={8} autoComplete="new-password" />}
+      </Field>
+      <Field label={t("resetPassword.confirmPassword")}>
+        {(control) => <Input {...control} name="confirmPassword" type="password" required minLength={8} autoComplete="new-password" />}
+      </Field>
+      {error ? (
+        <p role="alert" className="rounded-2xl bg-peligro/10 px-4 py-3 text-sm font-medium text-peligro">
+          {error}
+        </p>
+      ) : null}
+      <Button type="submit" variant="dark" size="lg" block loading={loading}>
         {loading ? t("resetPassword.saving") : t("resetPassword.resetButton")}
-      </button>
+      </Button>
     </form>
   );
 }
@@ -90,11 +83,10 @@ function ResetPasswordForm() {
 export default function ResetPasswordPage() {
   const t = useT();
   return (
-    <div className="mx-auto max-w-sm px-4 py-16 sm:px-6">
-      <h1 className="text-2xl font-bold">{t("resetPassword.title")}</h1>
-      <Suspense fallback={<p className="mt-6 text-sm text-muted-foreground">{t("resetPassword.loading")}</p>}>
+    <AuthCard title={t("resetPassword.title")}>
+      <Suspense fallback={<p className="text-center text-sm text-muted-foreground">{t("resetPassword.loading")}</p>}>
         <ResetPasswordForm />
       </Suspense>
-    </div>
+    </AuthCard>
   );
 }

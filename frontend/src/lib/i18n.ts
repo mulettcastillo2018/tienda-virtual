@@ -383,6 +383,7 @@ const es: Dict = {
     response: "Respuesta",
     viewResponseAttachment: "Ver adjunto de la respuesta",
     noResponseYet: "Todavía no tiene respuesta.",
+    requestType: "Tipo de solicitud",
   },
   orderStatus: {
     PENDING: "Pendiente de pago",
@@ -450,6 +451,11 @@ const es: Dict = {
     createAccount: "Crear cuenta",
     noAccount: "¿No tienes cuenta? Crea una",
     hasAccount: "¿Ya tienes cuenta? Ingresa",
+    titleLogin: "Ingresa a tu cuenta",
+    titleRegister: "Crea tu cuenta",
+    subtitleLogin: "Sigue tus pedidos y compra más rápido.",
+    subtitleRegister: "Compra en segundos y sigue tus pedidos.",
+    orContinueWith: "o continúa con",
   },
   addressForm: {
     fullName: "Nombre completo",
@@ -927,6 +933,7 @@ const en: Dict = {
     response: "Response",
     viewResponseAttachment: "View response attachment",
     noResponseYet: "There's no response yet.",
+    requestType: "Request type",
   },
   orderStatus: {
     PENDING: "Pending payment",
@@ -994,6 +1001,11 @@ const en: Dict = {
     createAccount: "Create account",
     noAccount: "Don't have an account? Create one",
     hasAccount: "Already have an account? Sign in",
+    titleLogin: "Sign in to your account",
+    titleRegister: "Create your account",
+    subtitleLogin: "Track your orders and check out faster.",
+    subtitleRegister: "Check out in seconds and track your orders.",
+    orContinueWith: "or continue with",
   },
   addressForm: {
     fullName: "Full name",
