@@ -6,6 +6,7 @@ import { apiFetch, ApiError } from "@/lib/api";
 import { useAuthStore } from "@/store/auth.store";
 import { ProductForm, type ProductFormValues } from "@/components/ProductForm";
 import { useT } from "@/lib/i18n";
+import { isDiscountActive } from "@/lib/pricing";
 import type { Category, Product } from "@/lib/types";
 
 function formatCOP(amount: number) {
@@ -138,7 +139,8 @@ export default function AdminProductsPage() {
                   </p>
                   <p className="text-sm font-semibold">
                     {formatCOP(product.price)}
-                    {product.discountPercentage ? (
+                    {/* Solo el descuento vigente: uno vencido conserva su porcentaje guardado pero ya no aplica */}
+                    {isDiscountActive(product) ? (
                       <span className="badge-new ml-2 rounded-full px-2 py-0.5 text-xs font-bold">
                         -{product.discountPercentage}%
                       </span>

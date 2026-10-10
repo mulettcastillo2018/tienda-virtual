@@ -30,6 +30,11 @@ const es: Dict = {
     cart: "Carrito",
     account: "Cuenta",
   },
+  notFound: {
+    title: "No encontramos esta página",
+    body: "Puede que el enlace esté mal escrito o que el producto ya no esté disponible.",
+    back: "Volver al catálogo",
+  },
   footer: {
     terms: "Términos y condiciones",
     shipping: "Política de envíos",
@@ -579,6 +584,11 @@ const en: Dict = {
     logoutToast: "Signed out",
     cart: "Cart",
     account: "Account",
+  },
+  notFound: {
+    title: "We couldn't find this page",
+    body: "The link may be mistyped or the product may no longer be available.",
+    back: "Back to catalog",
   },
   footer: {
     terms: "Terms and conditions",
