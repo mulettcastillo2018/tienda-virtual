@@ -22,27 +22,17 @@ services:
         generateValue: true
       - key: FILES_SIGNING_SECRET
         generateValue: true
+      # Demo: los archivos subidos (fotos nuevas, adjuntos de PQRS) se guardan en el
+      # disco del servicio, que el plan gratis borra al reiniciar. Para conservarlos,
+      # pasa a R2/S3 (docs/DESPLIEGUE.md, "Archivos permanentes"): STORAGE_DRIVER=s3 y
+      # las variables S3_* y PUBLIC_FILES_URL en el panel; no hace falta tocar código.
       - key: STORAGE_DRIVER
-        value: s3
-      - key: S3_REGION
-        value: auto
-      - key: S3_PUBLIC_BUCKET
-        value: tienda-publico
-      - key: S3_PRIVATE_BUCKET
-        value: tienda-privado
+        value: local
       - key: DATABASE_URL
         sync: false
       - key: FRONTEND_URL
         sync: false
       - key: BACKEND_URL
-        sync: false
-      - key: PUBLIC_FILES_URL
-        sync: false
-      - key: S3_ENDPOINT
-        sync: false
-      - key: S3_ACCESS_KEY_ID
-        sync: false
-      - key: S3_SECRET_ACCESS_KEY
         sync: false
       - key: WOMPI_PUBLIC_KEY
         sync: false
