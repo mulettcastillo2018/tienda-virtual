@@ -337,7 +337,7 @@ export default function CatalogPage() {
           <section
             aria-labelledby="titulo-categorias"
             data-celda="categorias"
-            className="min-w-0 rounded-[2rem] border border-border bg-surface p-3 shadow-suave sm:p-4 lg:col-span-8 lg:row-start-2"
+            className="min-w-0 rounded-[2rem] border border-border bg-surface p-3 shadow-suave sm:p-4 lg:col-span-8 lg:row-start-2 lg:flex lg:flex-col"
           >
             <div className="mb-1 flex items-center justify-between gap-3 px-2 pt-1">
               <h2 id="titulo-categorias" className="text-sm font-bold tracking-tight">
@@ -352,7 +352,8 @@ export default function CatalogPage() {
                 </button>
               </div>
             </div>
-            <div ref={categoryScrollRef} className="no-scrollbar flex snap-x gap-1 overflow-x-auto scroll-px-1 px-1">
+            {/* Si la fila del bento es más alta (p. ej. por las reseñas), los iconos quedan centrados */}
+            <div ref={categoryScrollRef} className="no-scrollbar flex snap-x gap-1 overflow-x-auto scroll-px-1 px-1 lg:my-auto">
               <CategoryTile active={activeCategory === null} onClick={() => setActiveCategory(null)} Icon={LayoutGrid} label={t("home.all")} />
               {categories.map((category) => (
                 <CategoryTile
