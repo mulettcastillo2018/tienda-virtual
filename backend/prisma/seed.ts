@@ -246,7 +246,8 @@ async function main() {
     });
   }
 
-  console.log(`Seed completado. ${products.length} productos. Admin: admin@tienda.test / admin1234`);
+  // La contraseña no se imprime: es la de SEED_ADMIN_PASSWORD.
+  console.log(`Seed completado. ${products.length} productos. Admin: admin@tienda.test (contraseña: la de SEED_ADMIN_PASSWORD)`);
 }
 
 main()
