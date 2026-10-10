@@ -257,6 +257,14 @@
   }
 }
 
+/* Ficha de producto en celular: la barra de compra fija (4.5rem, sobre las
+   pestañas de 4rem) empuja hacia arriba WhatsApp y los avisos. */
+@media (width < 48rem) {
+  body:has([data-barra-compra]) [data-flotante] {
+    bottom: calc(8.5rem + env(safe-area-inset-bottom) + 0.75rem);
+  }
+}
+
 /* ---- Fondo: una luz muy suave detrás del contenido ---- */
 
 .decorative-shapes {

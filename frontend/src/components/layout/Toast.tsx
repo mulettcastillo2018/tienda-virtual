@@ -18,7 +18,7 @@ export function Toast() {
 
   // En celular flota por encima de la barra inferior (4.5rem + zona segura).
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom)+0.75rem)] z-50 flex justify-center px-4 md:bottom-6">
+    <div data-flotante className="pointer-events-none fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom)+0.75rem)] z-50 flex justify-center px-4 md:bottom-6">
       <div
         role="status"
         aria-live="polite"
