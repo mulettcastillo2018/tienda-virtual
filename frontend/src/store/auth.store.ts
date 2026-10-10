@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { persist, createJSONStorage, type StateStorage } from "zustand/middleware";
 import type { AuthUser } from "@/lib/types";
@@ -45,3 +46,17 @@ export const useAuthStore = create<AuthState>()(
     { name: "tienda-auth", storage: createJSONStorage(() => dynamicStorage) }
   )
 );
+
+/**
+ * true cuando la sesión guardada ya se leyó en el navegador. En el primer
+ * render tras cargar la página (hidratación) el token todavía es null aunque
+ * haya sesión, así que una página no debe redirigir a /login antes de esto
+ * (p. ej. al volver de Wompi a /checkout/result o al recargar /checkout).
+ */
+export function useAuthHydrated() {
+  return useSyncExternalStore(
+    (onChange) => useAuthStore.persist.onFinishHydration(onChange),
+    () => useAuthStore.persist.hasHydrated(),
+    () => false
+  );
+}

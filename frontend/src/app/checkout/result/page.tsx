@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle2, Clock, Loader2, RefreshCw, XCircle } from "lucide-react";
 import { apiFetch, ApiError } from "@/lib/api";
-import { useAuthStore } from "@/store/auth.store";
+import { useAuthHydrated, useAuthStore } from "@/store/auth.store";
 import { useCartStore } from "@/store/cart.store";
 import { WompiButton } from "@/components/WompiButton";
 import { useLocale, useT } from "@/lib/i18n";
@@ -41,6 +41,7 @@ function ResultContent() {
   const params = useSearchParams();
   const orderId = params.get("orderId");
   const token = useAuthStore((state) => state.token);
+  const authHydrated = useAuthHydrated();
   const fetchCart = useCartStore((state) => state.fetchCart);
   const router = useRouter();
   const t = useT();
@@ -69,12 +70,14 @@ function ResultContent() {
   }, [token, orderId]);
 
   useEffect(() => {
+    // Al volver de Wompi la página carga de cero: hay que esperar a leer la sesión.
+    if (!authHydrated) return;
     if (!token) {
       router.push("/login");
       return;
     }
     check();
-  }, [token, check, router]);
+  }, [authHydrated, token, check, router]);
 
   useEffect(() => {
     if (data?.status !== "PENDING") {

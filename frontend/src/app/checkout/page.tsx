@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Check, MapPin, Plus, ShieldCheck } from "lucide-react";
 import { apiFetch, ApiError } from "@/lib/api";
-import { useAuthStore } from "@/store/auth.store";
+import { useAuthHydrated, useAuthStore } from "@/store/auth.store";
 import { useCartStore } from "@/store/cart.store";
 import { AddressForm, type AddressFormValues } from "@/components/AddressForm";
 import { getEffectivePrice } from "@/lib/pricing";
@@ -61,14 +61,15 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
 
   const token = useAuthStore((state) => state.token);
+  const authHydrated = useAuthHydrated();
   const cart = useCartStore((state) => state.cart);
   const fetchCart = useCartStore((state) => state.fetchCart);
   const router = useRouter();
   const t = useT();
 
   useEffect(() => {
-    if (!token) router.push("/login");
-  }, [token, router]);
+    if (authHydrated && !token) router.push("/login");
+  }, [authHydrated, token, router]);
 
   useEffect(() => {
     if (!token) return;
