@@ -1,25 +1,28 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { Star } from "lucide-react";
+import { Quote, Star } from "lucide-react";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useAuthStore } from "@/store/auth.store";
 import { useT } from "@/lib/i18n";
+import { cn } from "@/lib/cn";
+import { Button } from "@/components/ui/Button";
+import { Textarea } from "@/components/ui/Field";
 import type { StoreReviewsResponse } from "@/lib/types";
 
 const ROTATE_MS = 6000;
 
-function StarRow({ rating, size = 14 }: { rating: number; size?: number }) {
+function StarRow({ rating, size = 14, className }: { rating: number; size?: number; className?: string }) {
   return (
-    <div className="flex gap-0.5">
+    <div className={cn("flex gap-0.5", className)}>
       {[1, 2, 3, 4, 5].map((n) => (
-        <Star key={n} size={size} className={n <= Math.round(rating) ? "fill-accent text-accent" : "text-border"} />
+        <Star key={n} size={size} className={n <= Math.round(rating) ? "fill-accent text-accent" : "text-border-strong"} />
       ))}
     </div>
   );
 }
 
-export function StoreReviews() {
+export function StoreReviews({ className }: { className?: string }) {
   const [data, setData] = useState<StoreReviewsResponse | null>(null);
   const [index, setIndex] = useState(0);
   const [eligibleOrderId, setEligibleOrderId] = useState<string | null>(null);
@@ -92,77 +95,84 @@ export function StoreReviews() {
   const current = data?.items[index];
 
   return (
-    <aside className="w-full rounded-2xl border border-border p-4">
-      <h2 className="mb-2 text-sm font-extrabold tracking-tight">{t("reviews.title")}</h2>
+    <aside
+      data-celda="resenas"
+      className={cn("flex flex-col rounded-[2rem] border border-border bg-surface p-5 shadow-suave", className)}
+    >
+      <h2 className="text-sm font-bold tracking-tight">{t("reviews.title")}</h2>
 
       {data && data.total > 0 ? (
-        <>
-          <div className="mb-3 flex items-center gap-2">
-            <StarRow rating={data.average} />
-            <span className="text-xs font-semibold text-muted-foreground">
-              {data.average.toFixed(1)} · {data.total} {data.total === 1 ? t("reviews.countOne") : t("reviews.countMany")}
-            </span>
+        <div className="flex flex-1 flex-col">
+          <div className="mt-3 flex items-end gap-3">
+            <span className="text-4xl leading-none font-extrabold tracking-tight tabular-nums">{data.average.toFixed(1)}</span>
+            <div>
+              <StarRow rating={data.average} size={15} />
+              <p className="mt-1 text-xs text-muted-foreground">
+                {data.total} {data.total === 1 ? t("reviews.countOne") : t("reviews.countMany")}
+              </p>
+            </div>
           </div>
           {current ? (
-            <div key={current.id} className="animate-flash-in rounded-xl border border-border p-3">
-              <StarRow rating={current.rating} />
-              <p className="mt-1.5 line-clamp-4 text-xs text-muted-foreground">&ldquo;{current.comment}&rdquo;</p>
-              <p className="mt-1.5 text-[11px] font-semibold">{current.customerLabel}</p>
-            </div>
+            <figure key={current.id} className="animate-flash-in relative mt-4 flex-1 rounded-2xl bg-surface-2 p-4">
+              <Quote aria-hidden className="absolute top-3 right-3 size-7 fill-accent/15 text-transparent" />
+              <StarRow rating={current.rating} size={12} />
+              <blockquote className="mt-2 line-clamp-4 text-sm leading-relaxed text-foreground/85">&ldquo;{current.comment}&rdquo;</blockquote>
+              <figcaption className="mt-2 text-xs font-semibold text-muted-foreground">— {current.customerLabel}</figcaption>
+            </figure>
           ) : null}
-        </>
+        </div>
       ) : (
-        <p className="text-xs text-muted-foreground">{t("reviews.empty")}</p>
+        <div className="mt-3 flex flex-1 flex-col items-center justify-center gap-2.5 rounded-2xl border border-dashed border-border px-4 py-6 text-center">
+          <StarRow rating={0} size={18} />
+          <p className="max-w-56 text-xs leading-relaxed text-muted-foreground">{t("reviews.empty")}</p>
+        </div>
       )}
 
       {eligibleOrderId ? (
         showForm ? (
-          <form onSubmit={handleSubmit} className="mt-3 space-y-2 border-t border-border pt-3">
-            <p className="text-xs font-semibold">{t("reviews.howWasIt")}</p>
+          <form onSubmit={handleSubmit} className="animate-aparecer mt-4 grid gap-3 border-t border-border pt-4">
+            <p className="text-sm font-semibold">{t("reviews.howWasIt")}</p>
             <div className="flex gap-1">
               {[1, 2, 3, 4, 5].map((n) => (
-                <button key={n} type="button" onClick={() => setRating(n)} aria-label={t("reviews.starsLabel", { n })}>
-                  <Star size={20} className={n <= rating ? "fill-accent text-accent" : "text-border"} />
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setRating(n)}
+                  aria-label={t("reviews.starsLabel", { n })}
+                  aria-pressed={n === rating}
+                  className="rounded-md p-0.5 transition-[scale] duration-200 ease-resorte hover:scale-115"
+                >
+                  <Star size={24} className={n <= rating ? "fill-accent text-accent" : "text-border-strong"} />
                 </button>
               ))}
             </div>
-            <textarea
+            <Textarea
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               required
               maxLength={500}
               rows={3}
               placeholder={t("reviews.placeholder")}
-              className="w-full rounded-lg border border-border px-2 py-1.5 text-xs outline-none focus:border-accent"
+              aria-label={t("reviews.howWasIt")}
+              className="min-h-24"
             />
-            {submitError ? <p className="text-xs text-red-600">{submitError}</p> : null}
+            {submitError ? <p className="text-xs font-medium text-peligro">{submitError}</p> : null}
             <div className="flex gap-2">
-              <button
-                type="submit"
-                disabled={submitting || !comment.trim()}
-                className="btn-primary flex-1 rounded-full px-3 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-50"
-              >
+              <Button type="submit" variant="dark" size="sm" disabled={submitting || !comment.trim()} className="flex-1">
                 {submitting ? t("reviews.sending") : t("reviews.send")}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground"
-              >
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setShowForm(false)}>
                 {t("reviews.cancel")}
-              </button>
+              </Button>
             </div>
           </form>
         ) : (
-          <button
-            onClick={() => setShowForm(true)}
-            className="mt-3 w-full rounded-full border border-accent px-3 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent hover:text-white"
-          >
+          <Button variant="secondary" size="sm" block onClick={() => setShowForm(true)} className="mt-4">
             {t("reviews.rateButton")}
-          </button>
+          </Button>
         )
       ) : submitted ? (
-        <p className="mt-3 text-xs font-semibold text-accent">{t("reviews.thankYou")}</p>
+        <p className="mt-4 text-sm font-semibold text-exito">{t("reviews.thankYou")}</p>
       ) : null}
     </aside>
   );

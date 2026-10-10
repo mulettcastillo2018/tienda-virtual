@@ -243,6 +243,20 @@
   }
 }
 
+/* ---- Catálogo ---- */
+
+/* Bento del inicio: si no hay ofertas vigentes, las reseñas suben junto al
+   titular y las categorías toman todo el ancho, para que no quede un hueco. */
+@media (width >= 64rem) {
+  .bento-catalogo:not(:has(> [data-celda="ofertas"])) > [data-celda="resenas"] {
+    grid-row: 1;
+  }
+
+  .bento-catalogo:not(:has(> [data-celda="ofertas"])) > [data-celda="categorias"] {
+    grid-column: 1 / -1;
+  }
+}
+
 /* ---- Fondo: una luz muy suave detrás del contenido ---- */
 
 .decorative-shapes {

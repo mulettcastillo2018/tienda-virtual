@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Zap } from "lucide-react";
+import { Clock, Zap } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { getEffectivePrice } from "@/lib/pricing";
 import { useT } from "@/lib/i18n";
+import { cn } from "@/lib/cn";
 import type { Product } from "@/lib/types";
 
 function formatCOP(amount: number) {
@@ -25,7 +26,7 @@ function formatTimeLeft(endsAt: string, t: ReturnType<typeof useT>): string {
 const VISIBLE_COUNT = 3;
 const ROTATE_MS = 4000;
 
-export function FlashDeals() {
+export function FlashDeals({ className }: { className?: string }) {
   const [deals, setDeals] = useState<Product[]>([]);
   const [startIndex, setStartIndex] = useState(0);
   const t = useT();
@@ -51,37 +52,52 @@ export function FlashDeals() {
   const visible = Array.from({ length: Math.min(VISIBLE_COUNT, deals.length) }, (_, i) => deals[(startIndex + i) % deals.length]);
 
   return (
-    <aside className="w-full rounded-2xl border border-border p-4">
-      <div className="mb-3 flex items-center gap-1.5">
-        <Zap size={16} className="fill-accent text-accent" />
-        <h2 className="text-sm font-extrabold tracking-tight">{t("flashDeals.title")}</h2>
+    <aside
+      data-celda="ofertas"
+      className={cn("relative isolate overflow-hidden rounded-[2rem] border border-border bg-surface p-4 shadow-suave sm:p-5", className)}
+    >
+      {/* Luces de color detrás: el vidrio de cada oferta las difumina */}
+      <div aria-hidden className="absolute inset-0 -z-10">
+        <div className="absolute -top-20 -right-12 size-60 rounded-full bg-accent/45 blur-3xl" />
+        <div className="absolute top-1/3 left-1/4 size-44 rounded-full bg-accent-3/25 blur-3xl" />
+        <div className="absolute -bottom-24 -left-16 size-64 rounded-full bg-accent-2/35 blur-3xl" />
       </div>
 
-      <div className="space-y-3">
+      <h2 className="mb-3 flex items-center gap-2 px-1 text-sm font-bold tracking-tight">
+        <span className="flex size-7 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-acento">
+          <Zap size={14} className="fill-current" />
+        </span>
+        {t("flashDeals.title")}
+      </h2>
+
+      <div className="space-y-2">
         {visible.map((product) => (
           <Link
             key={`${product.id}-${startIndex}`}
             href={`/products/${product.id}`}
-            className="animate-flash-in flex items-center gap-3 rounded-xl border border-border p-2 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent hover:shadow-md"
+            className="vidrio animate-flash-in flex items-center gap-3 rounded-2xl p-2 pr-3 shadow-suave transition-[translate,box-shadow] duration-300 ease-salida hover:-translate-y-0.5 hover:shadow-elevada"
           >
-            <div className="product-media relative aspect-square w-14 shrink-0 overflow-hidden rounded-lg">
+            <div className="product-media relative size-16 shrink-0 overflow-hidden rounded-xl">
               {product.images[0] ? (
-                <Image src={product.images[0]} alt={product.name} fill sizes="56px" className="object-cover" />
+                <Image src={product.images[0]} alt={product.name} fill sizes="64px" className="object-cover" />
               ) : null}
-              <span className="absolute left-0 top-0 rounded-br-lg bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                -{product.discountPercentage}%
-              </span>
             </div>
             <div className="min-w-0 flex-1">
               <p className="line-clamp-1 text-xs font-semibold">{product.name}</p>
-              <p className="mt-0.5 flex items-baseline gap-1.5">
-                <span className="text-sm font-extrabold">{formatCOP(getEffectivePrice(product))}</span>
-                <span className="text-[11px] text-muted-foreground line-through">{formatCOP(product.price)}</span>
+              <p className="mt-0.5 flex flex-wrap items-baseline gap-x-1.5">
+                <span className="text-sm font-bold text-accent tabular-nums">{formatCOP(getEffectivePrice(product))}</span>
+                <span className="text-[11px] text-muted-foreground tabular-nums line-through">{formatCOP(product.price)}</span>
               </p>
               {product.discountEndsAt ? (
-                <p className="mt-0.5 text-[10px] font-semibold text-accent">{formatTimeLeft(product.discountEndsAt, t)}</p>
+                <p className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-muted-foreground">
+                  <Clock size={11} aria-hidden />
+                  {formatTimeLeft(product.discountEndsAt, t)}
+                </p>
               ) : null}
             </div>
+            <span className="shrink-0 rounded-full bg-accent px-2 py-1 text-[11px] font-bold text-accent-foreground tabular-nums">
+              -{product.discountPercentage}%
+            </span>
           </Link>
         ))}
       </div>
