@@ -88,12 +88,12 @@ export default function AdminProductsPage() {
 
   return (
     <div className="space-y-6">
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {error ? <p className="text-sm text-peligro font-medium">{error}</p> : null}
 
       <div className="space-y-2">
         {products.map((product) =>
           editingId === product.id ? (
-            <div key={product.id} className="rounded-xl border border-border p-4">
+            <div key={product.id} className="rounded-2xl border border-border p-4 bg-surface shadow-suave">
               <ProductForm
                 categories={categories}
                 submitLabel={t("adminProducts.saveChanges")}
@@ -121,10 +121,10 @@ export default function AdminProductsPage() {
           ) : (
             <div
               key={product.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-3"
+              className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border p-3 bg-surface shadow-suave"
             >
               <div className="flex items-center gap-3">
-                <div className="product-media relative aspect-square w-16 shrink-0 overflow-hidden rounded-lg bg-muted">
+                <div className="product-media relative aspect-square w-16 shrink-0 overflow-hidden rounded-lg bg-surface-2">
                   {product.images[0] ? (
                     <Image src={product.images[0]} alt={product.name} fill sizes="64px" className="object-cover" />
                   ) : null}
@@ -147,12 +147,12 @@ export default function AdminProductsPage() {
                 </div>
               </div>
               <div className="flex gap-3">
-                <button onClick={() => setEditingId(product.id)} className="text-sm font-semibold text-accent">
+                <button onClick={() => setEditingId(product.id)} className="text-sm font-semibold text-foreground underline-offset-4 hover:underline">
                   {t("adminProducts.edit")}
                 </button>
                 <button
                   onClick={() => handleToggleActive(product)}
-                  className="text-sm font-semibold text-red-600"
+                  className="text-sm font-semibold text-peligro"
                 >
                   {product.isActive ? t("adminProducts.deactivate") : t("adminProducts.reactivate")}
                 </button>
@@ -163,7 +163,7 @@ export default function AdminProductsPage() {
       </div>
 
       {creating ? (
-        <div className="rounded-xl border border-border p-4">
+        <div className="rounded-2xl border border-border p-4 bg-surface shadow-suave">
           <h2 className="text-sm font-bold">{t("adminProducts.newProduct")}</h2>
           <div className="mt-3">
             <ProductForm
@@ -179,7 +179,7 @@ export default function AdminProductsPage() {
         <button
           onClick={() => setCreating(true)}
           disabled={categories.length === 0}
-          className="btn-primary rounded-full px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center justify-center bg-foreground font-semibold text-background shadow-suave transition-[translate,box-shadow] duration-200 hover:-translate-y-px hover:shadow-elevada rounded-full px-4 h-10 text-sm disabled:cursor-not-allowed disabled:opacity-50"
         >
           {t("adminProducts.addProduct")}
         </button>

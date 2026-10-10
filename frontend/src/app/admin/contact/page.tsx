@@ -52,7 +52,7 @@ export default function AdminContactPage() {
   return (
     <div className="max-w-md space-y-4">
       <p className="text-sm text-muted-foreground">{t("adminContact.hint")}</p>
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {error ? <p className="text-sm text-peligro font-medium">{error}</p> : null}
       <form onSubmit={handleSubmit} className="space-y-3">
         <div>
           <label className="mb-1 block text-sm font-medium">{t("adminContact.phone")}</label>
@@ -60,7 +60,7 @@ export default function AdminContactPage() {
             name="phone"
             defaultValue={info.phone}
             required
-            className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+            className="w-full rounded-xl border border-border px-3.5 h-11 text-sm bg-surface"
           />
         </div>
         <div>
@@ -69,7 +69,7 @@ export default function AdminContactPage() {
             name="whatsapp"
             defaultValue={info.whatsapp}
             required
-            className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+            className="w-full rounded-xl border border-border px-3.5 h-11 text-sm bg-surface"
           />
         </div>
         <div>
@@ -79,7 +79,7 @@ export default function AdminContactPage() {
             type="email"
             defaultValue={info.email}
             required
-            className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+            className="w-full rounded-xl border border-border px-3.5 h-11 text-sm bg-surface"
           />
         </div>
         <div>
@@ -88,13 +88,13 @@ export default function AdminContactPage() {
             name="address"
             defaultValue={info.address}
             required
-            className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+            className="w-full rounded-xl border border-border px-3.5 h-11 text-sm bg-surface"
           />
         </div>
         <button
           type="submit"
           disabled={saving}
-          className="btn-primary rounded-full px-6 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center justify-center bg-foreground font-semibold text-background shadow-suave transition-[translate,box-shadow] duration-200 hover:-translate-y-px hover:shadow-elevada rounded-full px-6 h-10 text-sm disabled:cursor-not-allowed disabled:opacity-50"
         >
           {saving ? t("common.saving") : t("adminContact.saveChanges")}
         </button>

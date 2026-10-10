@@ -6,6 +6,8 @@ import { apiFetch, ApiError } from "@/lib/api";
 import { useAuthStore } from "@/store/auth.store";
 import { useToastStore } from "@/store/toast.store";
 import { useT } from "@/lib/i18n";
+import { ORDER_STATUS_TONE } from "@/lib/statusTones";
+import { Badge } from "@/components/ui/Badge";
 import type { Order } from "@/lib/types";
 
 function formatCOP(amount: number) {
@@ -71,20 +73,23 @@ export default function AdminOrdersPage() {
   return (
     <div className="space-y-4">
       {pendingReview > 0 ? (
-        <p className="flex items-center gap-2 rounded-xl border border-amber-500 bg-amber-500/10 p-3 text-sm text-foreground">
+        <p className="flex items-center gap-2 rounded-xl border border-aviso/40 bg-aviso/10 p-3 text-sm text-foreground">
           <AlertTriangle size={16} className="shrink-0" />
           {t("adminOrders.reviewBanner", { n: pendingReview })}
         </p>
       ) : null}
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {error ? <p className="text-sm text-peligro font-medium">{error}</p> : null}
 
       {orders.map((order) => {
         const lastPayment = order.payments?.[0];
         return (
-          <div key={order.id} className={`rounded-xl border p-4 ${order.needsReview ? "border-amber-500" : "border-border"}`}>
+          <div
+            key={order.id}
+            className={`rounded-2xl border bg-surface p-4 shadow-suave sm:p-5 ${order.needsReview ? "border-aviso/40" : "border-border"}`}
+          >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="font-semibold">#{order.id}</p>
-              <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">{t(`orderStatus.${order.status}`)}</span>
+              <Badge tone={ORDER_STATUS_TONE[order.status]}>{t(`orderStatus.${order.status}`)}</Badge>
             </div>
             <p className="mt-2 text-sm text-muted-foreground">
               {order.user?.email ? `${order.user.email} · ` : ""}
@@ -102,7 +107,7 @@ export default function AdminOrdersPage() {
             ) : null}
 
             {order.needsReview ? (
-              <div className="mt-3 rounded-lg bg-amber-500/10 p-3 text-sm text-foreground">
+              <div className="mt-3 rounded-lg bg-aviso/10 p-3 text-sm text-foreground">
                 <p className="font-semibold">{t("adminOrders.needsReview")}</p>
                 <p className="mt-1 whitespace-pre-line text-xs">{order.reviewNote}</p>
                 {resolving === order.id ? (
@@ -112,9 +117,9 @@ export default function AdminOrdersPage() {
                       required
                       minLength={3}
                       placeholder={t("adminOrders.resolutionPlaceholder")}
-                      className="min-w-0 flex-1 rounded-lg border border-border bg-background px-2 py-1 text-sm text-foreground"
+                      className="min-w-0 flex-1 rounded-xl border border-border bg-background px-2.5 h-9 text-sm text-foreground"
                     />
-                    <button type="submit" className="btn-primary rounded-full px-4 py-1 text-sm">
+                    <button type="submit" className="inline-flex items-center justify-center bg-foreground font-semibold text-background shadow-suave transition-[translate,box-shadow] duration-200 hover:-translate-y-px hover:shadow-elevada rounded-full px-4 h-9 text-sm disabled:cursor-not-allowed disabled:opacity-50">
                       {t("adminOrders.markResolved")}
                     </button>
                   </form>
@@ -129,14 +134,14 @@ export default function AdminOrdersPage() {
             {order.status === "PAID" || order.status === "PROCESSING" ? (
               dispatching === order.id ? (
                 <form onSubmit={(e) => handleDispatch(order.id, e)} className="mt-3 flex flex-wrap gap-2">
-                  <input name="carrier" placeholder={t("adminOrders.carrier")} required className="rounded-lg border border-border px-2 py-1 text-sm" />
-                  <input name="trackingNumber" placeholder={t("adminOrders.trackingNumber")} required className="rounded-lg border border-border px-2 py-1 text-sm" />
-                  <button type="submit" className="btn-primary rounded-full px-4 py-1 text-sm">
+                  <input name="carrier" placeholder={t("adminOrders.carrier")} required className="rounded-xl border border-border px-2.5 h-9 text-sm bg-surface" />
+                  <input name="trackingNumber" placeholder={t("adminOrders.trackingNumber")} required className="rounded-xl border border-border px-2.5 h-9 text-sm bg-surface" />
+                  <button type="submit" className="inline-flex items-center justify-center bg-foreground font-semibold text-background shadow-suave transition-[translate,box-shadow] duration-200 hover:-translate-y-px hover:shadow-elevada rounded-full px-4 h-9 text-sm disabled:cursor-not-allowed disabled:opacity-50">
                     {t("adminOrders.confirmDispatch")}
                   </button>
                 </form>
               ) : (
-                <button onClick={() => setDispatching(order.id)} className="mt-3 text-sm font-semibold text-accent">
+                <button onClick={() => setDispatching(order.id)} className="mt-3 text-sm font-semibold text-foreground underline-offset-4 hover:underline">
                   {t("adminOrders.markDispatched")}
                 </button>
               )

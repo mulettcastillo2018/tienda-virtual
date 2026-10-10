@@ -115,7 +115,7 @@ export function ProductForm({ categories, initialValues, onSubmit, onCancel, sub
         onChange={(e) => update("name", e.target.value)}
         placeholder={t("productForm.name")}
         required
-        className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+        className="w-full rounded-xl border border-border px-3.5 h-11 text-sm bg-surface"
       />
       <textarea
         value={values.description}
@@ -123,7 +123,7 @@ export function ProductForm({ categories, initialValues, onSubmit, onCancel, sub
         placeholder={t("productForm.description")}
         required
         rows={2}
-        className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+        className="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm bg-surface"
       />
       <div className="grid grid-cols-2 gap-3">
         <input
@@ -133,7 +133,7 @@ export function ProductForm({ categories, initialValues, onSubmit, onCancel, sub
           placeholder={t("productForm.price")}
           required
           min={1}
-          className="rounded-lg border border-border px-3 py-2 text-sm"
+          className="rounded-xl border border-border px-3.5 h-11 text-sm bg-surface"
         />
         <input
           type="number"
@@ -142,7 +142,7 @@ export function ProductForm({ categories, initialValues, onSubmit, onCancel, sub
           placeholder={t("productForm.discountPercent")}
           min={1}
           max={99}
-          className="rounded-lg border border-border px-3 py-2 text-sm"
+          className="rounded-xl border border-border px-3.5 h-11 text-sm bg-surface"
         />
       </div>
       {values.discountPercentage ? (
@@ -152,7 +152,7 @@ export function ProductForm({ categories, initialValues, onSubmit, onCancel, sub
           onChange={(e) => update("discountDurationDays", e.target.value === "" ? null : Number(e.target.value))}
           placeholder={t("productForm.discountDuration")}
           min={1}
-          className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+          className="w-full rounded-xl border border-border px-3.5 h-11 text-sm bg-surface"
         />
       ) : null}
       <input
@@ -162,13 +162,13 @@ export function ProductForm({ categories, initialValues, onSubmit, onCancel, sub
         placeholder={t("productForm.stock")}
         required
         min={0}
-        className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+        className="w-full rounded-xl border border-border px-3.5 h-11 text-sm bg-surface"
       />
       <select
         value={values.categoryId}
         onChange={(e) => update("categoryId", e.target.value)}
         required
-        className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+        className="w-full rounded-xl border border-border px-3.5 h-11 text-sm bg-surface"
       >
         {categories.map((c) => (
           <option key={c.id} value={c.id}>
@@ -181,13 +181,13 @@ export function ProductForm({ categories, initialValues, onSubmit, onCancel, sub
         onChange={(e) => update("sku", e.target.value)}
         placeholder={t("productForm.sku")}
         required
-        className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+        className="w-full rounded-xl border border-border px-3.5 h-11 text-sm bg-surface"
       />
       <input
         value={values.brand ?? ""}
         onChange={(e) => update("brand", e.target.value === "" ? null : e.target.value)}
         placeholder={t("productForm.brand")}
-        className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+        className="w-full rounded-xl border border-border px-3.5 h-11 text-sm bg-surface"
       />
 
       <div>
@@ -229,7 +229,7 @@ export function ProductForm({ categories, initialValues, onSubmit, onCancel, sub
                     value={slot}
                     onChange={(e) => setSlot(index, e.target.value)}
                     placeholder={t("productForm.urlPlaceholder")}
-                    className="w-full rounded border border-border px-1 py-0.5 text-[10px]"
+                    className="w-full rounded-lg border border-border px-1 py-0.5 text-[10px] bg-surface"
                   />
                 </div>
               )}
@@ -237,11 +237,11 @@ export function ProductForm({ categories, initialValues, onSubmit, onCancel, sub
           ))}
         </div>
         {imagesTouched && !imagesComplete ? (
-          <p className="mt-1 text-sm text-red-600">
+          <p className="mt-1 text-sm text-peligro font-medium">
             {t("productForm.missingImages", { count: REQUIRED_IMAGE_COUNT - filledImages.length })}
           </p>
         ) : null}
-        {uploadError ? <p className="mt-1 text-sm text-red-600">{uploadError}</p> : null}
+        {uploadError ? <p className="mt-1 text-sm text-peligro font-medium">{uploadError}</p> : null}
       </div>
 
       <div className="grid grid-cols-3 gap-3">
@@ -252,7 +252,7 @@ export function ProductForm({ categories, initialValues, onSubmit, onCancel, sub
           placeholder={t("productForm.weight")}
           required
           min={1}
-          className="rounded-lg border border-border px-3 py-2 text-sm"
+          className="rounded-xl border border-border px-3.5 h-11 text-sm bg-surface"
         />
         <input
           type="number"
@@ -262,7 +262,7 @@ export function ProductForm({ categories, initialValues, onSubmit, onCancel, sub
           required
           min={0.1}
           step={0.1}
-          className="rounded-lg border border-border px-3 py-2 text-sm"
+          className="rounded-xl border border-border px-3.5 h-11 text-sm bg-surface"
         />
         <input
           type="number"
@@ -272,7 +272,7 @@ export function ProductForm({ categories, initialValues, onSubmit, onCancel, sub
           required
           min={0.1}
           step={0.1}
-          className="rounded-lg border border-border px-3 py-2 text-sm"
+          className="rounded-xl border border-border px-3.5 h-11 text-sm bg-surface"
         />
       </div>
       <input
@@ -283,7 +283,7 @@ export function ProductForm({ categories, initialValues, onSubmit, onCancel, sub
         required
         min={0.1}
         step={0.1}
-        className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+        className="w-full rounded-xl border border-border px-3.5 h-11 text-sm bg-surface"
       />
       <label className="flex items-center gap-2 text-sm text-muted-foreground">
         <input
@@ -297,7 +297,7 @@ export function ProductForm({ categories, initialValues, onSubmit, onCancel, sub
         <button
           type="submit"
           disabled={loading}
-          className="btn-primary flex-1 rounded-full px-6 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center justify-center bg-foreground font-semibold text-background shadow-suave transition-[translate,box-shadow] duration-200 hover:-translate-y-px hover:shadow-elevada flex-1 rounded-full px-6 h-11 text-sm disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading ? t("productForm.saving") : submitLabel}
         </button>
@@ -305,7 +305,7 @@ export function ProductForm({ categories, initialValues, onSubmit, onCancel, sub
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-full border border-border px-6 py-2.5 text-sm text-muted-foreground"
+            className="rounded-full border border-border px-6 h-11 text-sm text-muted-foreground inline-flex items-center justify-center bg-surface font-medium transition-colors hover:bg-surface-2 hover:text-foreground"
           >
             {t("productForm.cancel")}
           </button>

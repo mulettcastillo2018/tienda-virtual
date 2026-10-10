@@ -85,10 +85,10 @@ export default function AdminCarriersPage() {
   function CarrierFields({ carrier }: { carrier?: Carrier }) {
     return (
       <>
-        <input name="name" defaultValue={carrier?.name} placeholder={t("common.name")} required className="rounded-lg border border-border px-2 py-1 text-sm" />
-        <input name="logoUrl" defaultValue={carrier?.logoUrl} placeholder={t("adminCarriers.logoUrlPlaceholder")} required className="rounded-lg border border-border px-2 py-1 text-sm" />
-        <input name="websiteUrl" defaultValue={carrier?.websiteUrl} placeholder={t("common.websiteUrlPlaceholder")} required className="rounded-lg border border-border px-2 py-1 text-sm" />
-        <input name="sortOrder" type="number" defaultValue={carrier?.sortOrder ?? 0} placeholder={t("common.order")} className="w-20 rounded-lg border border-border px-2 py-1 text-sm" />
+        <input name="name" defaultValue={carrier?.name} placeholder={t("common.name")} required className="rounded-xl border border-border px-2.5 h-9 text-sm bg-surface" />
+        <input name="logoUrl" defaultValue={carrier?.logoUrl} placeholder={t("adminCarriers.logoUrlPlaceholder")} required className="rounded-xl border border-border px-2.5 h-9 text-sm bg-surface" />
+        <input name="websiteUrl" defaultValue={carrier?.websiteUrl} placeholder={t("common.websiteUrlPlaceholder")} required className="rounded-xl border border-border px-2.5 h-9 text-sm bg-surface" />
+        <input name="sortOrder" type="number" defaultValue={carrier?.sortOrder ?? 0} placeholder={t("common.order")} className="w-20 rounded-xl border border-border px-2.5 h-9 text-sm bg-surface" />
         <label className="flex items-center gap-1 text-sm text-muted-foreground">
           <input name="isActive" type="checkbox" defaultChecked={carrier?.isActive ?? true} />
           {t("common.active")}
@@ -100,7 +100,7 @@ export default function AdminCarriersPage() {
   return (
     <div className="space-y-6">
       <p className="text-sm text-muted-foreground">{t("adminCarriers.hint")}</p>
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {error ? <p className="text-sm text-peligro font-medium">{error}</p> : null}
 
       <div className="space-y-2">
         {carriers.map((carrier) =>
@@ -108,18 +108,18 @@ export default function AdminCarriersPage() {
             <form
               key={carrier.id}
               onSubmit={(e) => handleUpdate(carrier.id, e)}
-              className="flex flex-wrap items-center gap-2 rounded-xl border border-border p-3"
+              className="flex flex-wrap items-center gap-2 rounded-2xl border border-border p-3 bg-surface shadow-suave"
             >
               <CarrierFields carrier={carrier} />
-              <button type="submit" disabled={saving} className="btn-primary rounded-full px-4 py-1 text-sm">
+              <button type="submit" disabled={saving} className="inline-flex items-center justify-center bg-foreground font-semibold text-background shadow-suave transition-[translate,box-shadow] duration-200 hover:-translate-y-px hover:shadow-elevada rounded-full px-4 h-9 text-sm disabled:cursor-not-allowed disabled:opacity-50">
                 {t("common.save")}
               </button>
-              <button type="button" onClick={() => setEditingId(null)} className="rounded-full border border-border px-4 py-1 text-sm text-muted-foreground">
+              <button type="button" onClick={() => setEditingId(null)} className="rounded-full border border-border px-4 h-9 text-sm text-muted-foreground inline-flex items-center justify-center bg-surface font-medium transition-colors hover:bg-surface-2 hover:text-foreground">
                 {t("common.cancel")}
               </button>
             </form>
           ) : (
-            <div key={carrier.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-3">
+            <div key={carrier.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border p-3 bg-surface shadow-suave">
               <div className="flex items-center gap-3">
                 <Image src={carrier.logoUrl} alt={carrier.name} width={80} height={20} className="h-5 w-auto object-contain" />
                 <div>
@@ -130,10 +130,10 @@ export default function AdminCarriersPage() {
                 </div>
               </div>
               <div className="flex gap-3">
-                <button onClick={() => setEditingId(carrier.id)} className="text-sm font-semibold text-accent">
+                <button onClick={() => setEditingId(carrier.id)} className="text-sm font-semibold text-foreground underline-offset-4 hover:underline">
                   {t("common.edit")}
                 </button>
-                <button onClick={() => handleDelete(carrier.id)} className="text-sm font-semibold text-red-600">
+                <button onClick={() => handleDelete(carrier.id)} className="text-sm font-semibold text-peligro">
                   {t("common.delete")}
                 </button>
               </div>
@@ -143,17 +143,17 @@ export default function AdminCarriersPage() {
       </div>
 
       {creating ? (
-        <form onSubmit={handleCreate} className="flex flex-wrap items-center gap-2 rounded-xl border border-border p-3">
+        <form onSubmit={handleCreate} className="flex flex-wrap items-center gap-2 rounded-2xl border border-border p-3 bg-surface shadow-suave">
           <CarrierFields />
-          <button type="submit" disabled={saving} className="btn-primary rounded-full px-4 py-1 text-sm">
+          <button type="submit" disabled={saving} className="inline-flex items-center justify-center bg-foreground font-semibold text-background shadow-suave transition-[translate,box-shadow] duration-200 hover:-translate-y-px hover:shadow-elevada rounded-full px-4 h-9 text-sm disabled:cursor-not-allowed disabled:opacity-50">
             {saving ? t("common.saving") : t("common.create")}
           </button>
-          <button type="button" onClick={() => setCreating(false)} className="rounded-full border border-border px-4 py-1 text-sm text-muted-foreground">
+          <button type="button" onClick={() => setCreating(false)} className="rounded-full border border-border px-4 h-9 text-sm text-muted-foreground inline-flex items-center justify-center bg-surface font-medium transition-colors hover:bg-surface-2 hover:text-foreground">
             {t("common.cancel")}
           </button>
         </form>
       ) : (
-        <button onClick={() => setCreating(true)} className="btn-primary rounded-full px-4 py-2 text-sm">
+        <button onClick={() => setCreating(true)} className="inline-flex items-center justify-center bg-foreground font-semibold text-background shadow-suave transition-[translate,box-shadow] duration-200 hover:-translate-y-px hover:shadow-elevada rounded-full px-4 h-10 text-sm disabled:cursor-not-allowed disabled:opacity-50">
           {t("adminCarriers.addNew")}
         </button>
       )}

@@ -85,10 +85,10 @@ export default function AdminSocialLinksPage() {
   function LinkFields({ link }: { link?: SocialLink }) {
     return (
       <>
-        <input name="name" defaultValue={link?.name} placeholder={t("adminSocialLinks.namePlaceholder")} required className="rounded-lg border border-border px-2 py-1 text-sm" />
-        <input name="iconUrl" defaultValue={link?.iconUrl} placeholder={t("adminSocialLinks.iconUrlPlaceholder")} required className="rounded-lg border border-border px-2 py-1 text-sm" />
-        <input name="url" defaultValue={link?.url} placeholder={t("adminSocialLinks.urlPlaceholder")} required className="rounded-lg border border-border px-2 py-1 text-sm" />
-        <input name="sortOrder" type="number" defaultValue={link?.sortOrder ?? 0} placeholder={t("common.order")} className="w-20 rounded-lg border border-border px-2 py-1 text-sm" />
+        <input name="name" defaultValue={link?.name} placeholder={t("adminSocialLinks.namePlaceholder")} required className="rounded-xl border border-border px-2.5 h-9 text-sm bg-surface" />
+        <input name="iconUrl" defaultValue={link?.iconUrl} placeholder={t("adminSocialLinks.iconUrlPlaceholder")} required className="rounded-xl border border-border px-2.5 h-9 text-sm bg-surface" />
+        <input name="url" defaultValue={link?.url} placeholder={t("adminSocialLinks.urlPlaceholder")} required className="rounded-xl border border-border px-2.5 h-9 text-sm bg-surface" />
+        <input name="sortOrder" type="number" defaultValue={link?.sortOrder ?? 0} placeholder={t("common.order")} className="w-20 rounded-xl border border-border px-2.5 h-9 text-sm bg-surface" />
         <label className="flex items-center gap-1 text-sm text-muted-foreground">
           <input name="isActive" type="checkbox" defaultChecked={link?.isActive ?? true} />
           {t("common.active")}
@@ -100,7 +100,7 @@ export default function AdminSocialLinksPage() {
   return (
     <div className="space-y-6">
       <p className="text-sm text-muted-foreground">{t("adminSocialLinks.hint")}</p>
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {error ? <p className="text-sm text-peligro font-medium">{error}</p> : null}
 
       <div className="space-y-2">
         {links.map((link) =>
@@ -108,18 +108,18 @@ export default function AdminSocialLinksPage() {
             <form
               key={link.id}
               onSubmit={(e) => handleUpdate(link.id, e)}
-              className="flex flex-wrap items-center gap-2 rounded-xl border border-border p-3"
+              className="flex flex-wrap items-center gap-2 rounded-2xl border border-border p-3 bg-surface shadow-suave"
             >
               <LinkFields link={link} />
-              <button type="submit" disabled={saving} className="btn-primary rounded-full px-4 py-1 text-sm">
+              <button type="submit" disabled={saving} className="inline-flex items-center justify-center bg-foreground font-semibold text-background shadow-suave transition-[translate,box-shadow] duration-200 hover:-translate-y-px hover:shadow-elevada rounded-full px-4 h-9 text-sm disabled:cursor-not-allowed disabled:opacity-50">
                 {t("common.save")}
               </button>
-              <button type="button" onClick={() => setEditingId(null)} className="rounded-full border border-border px-4 py-1 text-sm text-muted-foreground">
+              <button type="button" onClick={() => setEditingId(null)} className="rounded-full border border-border px-4 h-9 text-sm text-muted-foreground inline-flex items-center justify-center bg-surface font-medium transition-colors hover:bg-surface-2 hover:text-foreground">
                 {t("common.cancel")}
               </button>
             </form>
           ) : (
-            <div key={link.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border p-3">
+            <div key={link.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border p-3 bg-surface shadow-suave">
               <div className="flex items-center gap-3">
                 <Image src={link.iconUrl} alt={link.name} width={24} height={24} className="h-6 w-6 object-contain" />
                 <div>
@@ -130,10 +130,10 @@ export default function AdminSocialLinksPage() {
                 </div>
               </div>
               <div className="flex gap-3">
-                <button onClick={() => setEditingId(link.id)} className="text-sm font-semibold text-accent">
+                <button onClick={() => setEditingId(link.id)} className="text-sm font-semibold text-foreground underline-offset-4 hover:underline">
                   {t("common.edit")}
                 </button>
-                <button onClick={() => handleDelete(link.id)} className="text-sm font-semibold text-red-600">
+                <button onClick={() => handleDelete(link.id)} className="text-sm font-semibold text-peligro">
                   {t("common.delete")}
                 </button>
               </div>
@@ -143,17 +143,17 @@ export default function AdminSocialLinksPage() {
       </div>
 
       {creating ? (
-        <form onSubmit={handleCreate} className="flex flex-wrap items-center gap-2 rounded-xl border border-border p-3">
+        <form onSubmit={handleCreate} className="flex flex-wrap items-center gap-2 rounded-2xl border border-border p-3 bg-surface shadow-suave">
           <LinkFields />
-          <button type="submit" disabled={saving} className="btn-primary rounded-full px-4 py-1 text-sm">
+          <button type="submit" disabled={saving} className="inline-flex items-center justify-center bg-foreground font-semibold text-background shadow-suave transition-[translate,box-shadow] duration-200 hover:-translate-y-px hover:shadow-elevada rounded-full px-4 h-9 text-sm disabled:cursor-not-allowed disabled:opacity-50">
             {saving ? t("common.saving") : t("common.create")}
           </button>
-          <button type="button" onClick={() => setCreating(false)} className="rounded-full border border-border px-4 py-1 text-sm text-muted-foreground">
+          <button type="button" onClick={() => setCreating(false)} className="rounded-full border border-border px-4 h-9 text-sm text-muted-foreground inline-flex items-center justify-center bg-surface font-medium transition-colors hover:bg-surface-2 hover:text-foreground">
             {t("common.cancel")}
           </button>
         </form>
       ) : (
-        <button onClick={() => setCreating(true)} className="btn-primary rounded-full px-4 py-2 text-sm">
+        <button onClick={() => setCreating(true)} className="inline-flex items-center justify-center bg-foreground font-semibold text-background shadow-suave transition-[translate,box-shadow] duration-200 hover:-translate-y-px hover:shadow-elevada rounded-full px-4 h-10 text-sm disabled:cursor-not-allowed disabled:opacity-50">
           {t("adminSocialLinks.addNew")}
         </button>
       )}

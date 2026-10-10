@@ -113,7 +113,7 @@ export default function AdminDiscountsPage() {
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">{t("adminDiscounts.hint")}</p>
 
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {error ? <p className="text-sm text-peligro font-medium">{error}</p> : null}
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
         {products.map((product) => {
@@ -127,8 +127,8 @@ export default function AdminDiscountsPage() {
           const expired = Boolean(product.discountPercentage) && !active;
 
           return (
-            <div key={product.id} className="rounded-xl border border-border p-3 text-center">
-              <div className="product-media relative mx-auto aspect-square w-full overflow-hidden rounded-lg bg-muted">
+            <div key={product.id} className="rounded-2xl border border-border p-3 text-center bg-surface shadow-suave">
+              <div className="product-media relative mx-auto aspect-square w-full overflow-hidden rounded-lg bg-surface-2">
                 {product.images[0] ? (
                   <Image src={product.images[0]} alt={product.name} fill sizes="150px" className="object-cover" />
                 ) : null}
@@ -163,7 +163,7 @@ export default function AdminDiscountsPage() {
                   placeholder={t("adminDiscounts.percentPlaceholder")}
                   value={draft.percentage}
                   onChange={(e) => updateDraft(product.id, "percentage", e.target.value)}
-                  className="w-full rounded-lg border border-border px-2 py-1 text-center text-sm"
+                  className="w-full rounded-xl border border-border px-2.5 h-9 text-center text-sm bg-surface"
                 />
                 <input
                   type="number"
@@ -171,18 +171,18 @@ export default function AdminDiscountsPage() {
                   placeholder={t("adminDiscounts.durationPlaceholder")}
                   value={draft.durationDays}
                   onChange={(e) => updateDraft(product.id, "durationDays", e.target.value)}
-                  className="w-full rounded-lg border border-border px-2 py-1 text-center text-sm"
+                  className="w-full rounded-xl border border-border px-2.5 h-9 text-center text-sm bg-surface"
                 />
                 <button
                   onClick={() => handleSave(product)}
                   disabled={savingId === product.id}
-                  className="btn-primary w-full rounded-full px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex items-center justify-center bg-foreground font-semibold text-background shadow-suave transition-[translate,box-shadow] duration-200 hover:-translate-y-px hover:shadow-elevada w-full rounded-full px-3 h-9 text-sm disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {savingId === product.id ? t("adminDiscounts.saving") : t("adminDiscounts.save")}
                 </button>
                 <button
                   onClick={() => toggleHistory(product.id)}
-                  className="w-full text-xs font-semibold text-accent underline"
+                  className="w-full text-xs font-semibold text-foreground underline underline-offset-4"
                 >
                   {historyOpenId === product.id ? t("adminDiscounts.hideHistory") : t("adminDiscounts.viewHistory")}
                 </button>

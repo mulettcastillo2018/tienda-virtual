@@ -123,14 +123,14 @@ export default function AdminUsersPage() {
 
   return (
     <div className="space-y-2">
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {error ? <p className="text-sm text-peligro font-medium">{error}</p> : null}
 
       {users.map((user) => (
-        <div key={user.id} className="rounded-xl border border-border p-3">
+        <div key={user.id} className="rounded-2xl border border-border p-3 bg-surface shadow-suave">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="font-semibold">
-                {user.email} {!user.isActive ? <span className="text-red-600">{t("adminUsers.deactivated")}</span> : null}
+                {user.email} {!user.isActive ? <span className="text-peligro">{t("adminUsers.deactivated")}</span> : null}
               </p>
               <p className="text-sm text-muted-foreground">
                 {user.phone} · {t("adminUsers.ordersCount", { count: user._count.orders, plural: user._count.orders === 1 ? "" : "s" })} ·{" "}
@@ -143,7 +143,7 @@ export default function AdminUsersPage() {
                   setResetError(null);
                   setResettingId(resettingId === user.id ? null : user.id);
                 }}
-                className="text-sm font-semibold text-accent"
+                className="text-sm font-semibold text-foreground underline-offset-4 hover:underline"
               >
                 {t("adminUsers.resetPassword")}
               </button>
@@ -155,7 +155,7 @@ export default function AdminUsersPage() {
                     value={user.role}
                     onChange={(e) => handleChangeRole(user, e.target.value as UserRole)}
                     disabled={updatingId === user.id}
-                    className="rounded-lg border border-border px-2 py-1 text-sm"
+                    className="rounded-xl border border-border px-2.5 h-9 text-sm bg-surface"
                   >
                     {ROLES.map((role) => (
                       <option key={role} value={role}>
@@ -166,7 +166,7 @@ export default function AdminUsersPage() {
                   <button
                     onClick={() => handleToggleActive(user)}
                     disabled={updatingId === user.id}
-                    className="text-sm font-semibold text-red-600 disabled:opacity-50"
+                    className="text-sm font-semibold text-peligro disabled:opacity-50"
                   >
                     {user.isActive ? t("adminUsers.deactivate") : t("adminUsers.reactivate")}
                   </button>
@@ -180,14 +180,14 @@ export default function AdminUsersPage() {
               onSubmit={(e) => handleResetPassword(user.id, e)}
               className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3"
             >
-              {resetError ? <p className="w-full text-sm text-red-600">{resetError}</p> : null}
+              {resetError ? <p className="w-full text-sm text-peligro font-medium">{resetError}</p> : null}
               <input
                 type="password"
                 name="newPassword"
                 placeholder={t("adminUsers.newPassword")}
                 required
                 minLength={8}
-                className="rounded-lg border border-border px-2 py-1 text-sm"
+                className="rounded-xl border border-border px-2.5 h-9 text-sm bg-surface"
               />
               <input
                 type="password"
@@ -195,19 +195,19 @@ export default function AdminUsersPage() {
                 placeholder={t("adminUsers.confirmPassword")}
                 required
                 minLength={8}
-                className="rounded-lg border border-border px-2 py-1 text-sm"
+                className="rounded-xl border border-border px-2.5 h-9 text-sm bg-surface"
               />
               <button
                 type="submit"
                 disabled={updatingId === user.id}
-                className="btn-primary rounded-full px-4 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center justify-center bg-foreground font-semibold text-background shadow-suave transition-[translate,box-shadow] duration-200 hover:-translate-y-px hover:shadow-elevada rounded-full px-4 h-9 text-sm disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {t("adminUsers.save")}
               </button>
               <button
                 type="button"
                 onClick={() => setResettingId(null)}
-                className="rounded-full border border-border px-4 py-1 text-sm text-muted-foreground"
+                className="rounded-full border border-border px-4 h-9 text-sm text-muted-foreground inline-flex items-center justify-center bg-surface font-medium transition-colors hover:bg-surface-2 hover:text-foreground"
               >
                 {t("adminUsers.cancel")}
               </button>

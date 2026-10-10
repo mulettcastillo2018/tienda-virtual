@@ -26,7 +26,7 @@ function IconPicker({
             title={name}
             onClick={() => onChange(name)}
             className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
-              selected ? "bg-accent text-white" : "bg-muted text-muted-foreground hover:text-foreground"
+              selected ? "bg-foreground text-background" : "bg-surface-2 text-muted-foreground hover:text-foreground"
             }`}
           >
             <OptionIcon size={16} />
@@ -120,7 +120,7 @@ export default function AdminCategoriesPage() {
 
   return (
     <div className="space-y-6">
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {error ? <p className="text-sm text-peligro font-medium">{error}</p> : null}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
         {categories.map((category) => {
@@ -129,32 +129,32 @@ export default function AdminCategoriesPage() {
             <form
               key={category.id}
               onSubmit={(e) => handleUpdate(category.id, e)}
-              className="flex flex-col items-center gap-1.5 rounded-xl border border-border p-3"
+              className="flex flex-col items-center gap-1.5 rounded-2xl border border-border p-3 bg-surface shadow-suave"
             >
-              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-accent">
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-2 text-foreground/80">
                 <CategoryIcon size={22} />
               </span>
               <input
                 name="name"
                 defaultValue={category.name}
                 required
-                className="w-full rounded-lg border border-border px-2 py-1 text-sm"
+                className="w-full rounded-xl border border-border px-2.5 h-9 text-sm bg-surface"
               />
               <input
                 name="slug"
                 defaultValue={category.slug}
                 required
-                className="w-full rounded-lg border border-border px-2 py-1 text-sm"
+                className="w-full rounded-xl border border-border px-2.5 h-9 text-sm bg-surface"
               />
               <IconPicker value={editIcon} onChange={setEditIcon} />
               <div className="flex w-full gap-2">
-                <button type="submit" disabled={saving} className="btn-primary flex-1 rounded-full px-3 py-1 text-sm">
+                <button type="submit" disabled={saving} className="inline-flex items-center justify-center bg-foreground font-semibold text-background shadow-suave transition-[translate,box-shadow] duration-200 hover:-translate-y-px hover:shadow-elevada flex-1 rounded-full px-3 h-9 text-sm disabled:cursor-not-allowed disabled:opacity-50">
                   {t("adminCategories.save")}
                 </button>
                 <button
                   type="button"
                   onClick={() => setEditingId(null)}
-                  className="flex-1 rounded-full border border-border px-3 py-1 text-sm text-muted-foreground"
+                  className="flex-1 rounded-full border border-border px-3 h-9 text-sm text-muted-foreground inline-flex items-center justify-center bg-surface font-medium transition-colors hover:bg-surface-2 hover:text-foreground"
                 >
                   {t("adminCategories.cancel")}
                 </button>
@@ -163,20 +163,20 @@ export default function AdminCategoriesPage() {
           ) : (
             <div
               key={category.id}
-              className="flex flex-col items-center gap-1 rounded-xl border border-border p-3 text-center transition-all duration-200 hover:-translate-y-0.5 hover:border-accent hover:shadow-md"
+              className="flex flex-col items-center gap-1 rounded-2xl border border-border p-3 text-center transition-all duration-200 hover:-translate-y-0.5 hover:border-border-strong hover:shadow-elevada bg-surface shadow-suave"
             >
-              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-accent">
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-2 text-foreground/80">
                 <CategoryIcon size={22} />
               </span>
               <p className="line-clamp-2 text-sm font-semibold">{category.name}</p>
               <p className="text-xs text-muted-foreground">{category.slug}</p>
               <div className="mt-1 flex gap-3">
-                <button onClick={() => startEditing(category)} className="text-xs font-semibold text-accent">
+                <button onClick={() => startEditing(category)} className="text-xs font-semibold text-foreground underline-offset-4 hover:underline">
                   {t("adminCategories.edit")}
                 </button>
                 <button
                   onClick={() => handleDelete(category.id)}
-                  className="text-xs font-semibold text-red-600"
+                  className="text-xs font-semibold text-peligro"
                 >
                   {t("adminCategories.delete")}
                 </button>
@@ -186,15 +186,15 @@ export default function AdminCategoriesPage() {
         })}
       </div>
 
-      <div className="rounded-xl border border-border p-4">
+      <div className="rounded-2xl border border-border p-4 bg-surface shadow-suave">
         <h2 className="text-sm font-bold">{t("adminCategories.newCategory")}</h2>
         <form onSubmit={handleCreate} className="mt-3 flex flex-wrap items-start gap-2">
-          <input name="name" placeholder={t("adminCategories.name")} required className="rounded-lg border border-border px-2 py-1 text-sm" />
-          <input name="slug" placeholder={t("adminCategories.slug")} required className="rounded-lg border border-border px-2 py-1 text-sm" />
+          <input name="name" placeholder={t("adminCategories.name")} required className="rounded-xl border border-border px-2.5 h-9 text-sm bg-surface" />
+          <input name="slug" placeholder={t("adminCategories.slug")} required className="rounded-xl border border-border px-2.5 h-9 text-sm bg-surface" />
           <div className="w-full max-w-xs sm:w-64">
             <IconPicker value={newIcon} onChange={setNewIcon} />
           </div>
-          <button type="submit" disabled={saving} className="btn-primary rounded-full px-4 py-1 text-sm">
+          <button type="submit" disabled={saving} className="inline-flex items-center justify-center bg-foreground font-semibold text-background shadow-suave transition-[translate,box-shadow] duration-200 hover:-translate-y-px hover:shadow-elevada rounded-full px-4 h-9 text-sm disabled:cursor-not-allowed disabled:opacity-50">
             {saving ? t("adminCategories.saving") : t("adminCategories.create")}
           </button>
         </form>

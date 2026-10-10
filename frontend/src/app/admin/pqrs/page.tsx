@@ -26,18 +26,18 @@ export default function AdminPqrsPage() {
       <p className="text-sm text-muted-foreground">{t("adminPqrsStats.readOnlyHint")}</p>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div className="rounded-xl border border-border p-4 text-center">
+        <div className="rounded-2xl border border-border p-4 text-center bg-surface shadow-suave">
           <p className="text-2xl font-extrabold">{stats.total}</p>
           <p className="text-xs text-muted-foreground">{t("adminPqrsStats.total")}</p>
         </div>
-        <div className="rounded-xl border border-border p-4 text-center">
+        <div className="rounded-2xl border border-border p-4 text-center bg-surface shadow-suave">
           <p className="text-2xl font-extrabold">
             {stats.avgResponseTimeHours !== null ? stats.avgResponseTimeHours.toFixed(1) : "—"}
           </p>
           <p className="text-xs text-muted-foreground">{t("adminPqrsStats.avgResponseHours")}</p>
         </div>
-        <div className={`rounded-xl border p-4 text-center ${stats.overdue > 0 ? "border-red-600" : "border-border"}`}>
-          <p className={`text-2xl font-extrabold ${stats.overdue > 0 ? "text-red-600" : ""}`}>{stats.overdue}</p>
+        <div className={`rounded-2xl border bg-surface p-4 text-center shadow-suave ${stats.overdue > 0 ? "border-peligro" : "border-border"}`}>
+          <p className={`text-2xl font-extrabold ${stats.overdue > 0 ? "text-peligro" : ""}`}>{stats.overdue}</p>
           <p className="text-xs text-muted-foreground">{t("adminPqrsStats.overdue")}</p>
         </div>
       </div>
@@ -46,7 +46,7 @@ export default function AdminPqrsPage() {
         <h2 className="text-sm font-bold">{t("adminPqrsStats.byStatus")}</h2>
         <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {PQRS_STATUSES.map((value) => (
-            <div key={value} className="rounded-xl border border-border p-3 text-center">
+            <div key={value} className="rounded-2xl border border-border p-3 text-center bg-surface shadow-suave">
               <p className="text-xl font-bold">{stats.byStatus[value] ?? 0}</p>
               <p className="text-xs text-muted-foreground">{t(`pqrsStatus.${value}`)}</p>
             </div>
@@ -58,7 +58,7 @@ export default function AdminPqrsPage() {
         <h2 className="text-sm font-bold">{t("adminPqrsStats.byType")}</h2>
         <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {PQRS_TYPES.map((value) => (
-            <div key={value} className="rounded-xl border border-border p-3 text-center">
+            <div key={value} className="rounded-2xl border border-border p-3 text-center bg-surface shadow-suave">
               <p className="text-xl font-bold">{stats.byType[value] ?? 0}</p>
               <p className="text-xs text-muted-foreground">{t(`pqrsType.${value}`)}</p>
             </div>

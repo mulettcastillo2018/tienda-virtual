@@ -6,9 +6,17 @@ import { useAuthStore } from "@/store/auth.store";
 import { useToastStore } from "@/store/toast.store";
 import { PqrsTimeline } from "@/components/PqrsTimeline";
 import { useT, useLocale } from "@/lib/i18n";
+import { cn } from "@/lib/cn";
+import { PQRS_STATUS_TONE } from "@/lib/statusTones";
+import { Badge } from "@/components/ui/Badge";
 import type { Pqrs, PqrsStatus } from "@/lib/types";
 
 const PQRS_STATUSES: PqrsStatus[] = ["RECIBIDO", "EN_PROCESO", "RESUELTO", "CERRADO"];
+
+// Filtro por estado: el elegido queda en tinta.
+const FILTER = "inline-flex h-9 shrink-0 items-center rounded-full border px-4 text-sm font-semibold whitespace-nowrap transition-colors duration-200";
+const FILTER_ON = "border-foreground bg-foreground text-background";
+const FILTER_OFF = "border-border bg-surface text-muted-foreground hover:text-foreground";
 
 function formatDate(iso: string, locale: "es" | "en") {
   return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "es-CO", { dateStyle: "long", timeStyle: "short" }).format(
@@ -88,12 +96,11 @@ export default function JuridicoPqrsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
+      <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
         <button
           onClick={() => setStatusFilter("ALL")}
-          className={`rounded-full px-4 py-1.5 text-sm font-semibold ${
-            statusFilter === "ALL" ? "btn-primary" : "border border-border text-muted-foreground"
-          }`}
+          aria-pressed={statusFilter === "ALL"}
+          className={cn(FILTER, statusFilter === "ALL" ? FILTER_ON : FILTER_OFF)}
         >
           {t("juridico.all")}
         </button>
@@ -101,9 +108,8 @@ export default function JuridicoPqrsPage() {
           <button
             key={value}
             onClick={() => setStatusFilter(value)}
-            className={`rounded-full px-4 py-1.5 text-sm font-semibold ${
-              statusFilter === value ? "btn-primary" : "border border-border text-muted-foreground"
-            }`}
+            aria-pressed={statusFilter === value}
+            className={cn(FILTER, statusFilter === value ? FILTER_ON : FILTER_OFF)}
           >
             {t(`pqrsStatus.${value}`)}
           </button>
@@ -115,7 +121,7 @@ export default function JuridicoPqrsPage() {
       ) : (
         <div className="space-y-3">
           {visibleItems.map((pqrs) => (
-            <div key={pqrs.id} className="rounded-xl border border-border p-4">
+            <div key={pqrs.id} className="rounded-2xl border border-border p-4 bg-surface shadow-suave">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <p className="font-semibold">
@@ -128,9 +134,7 @@ export default function JuridicoPqrsPage() {
                     <p className="text-sm text-muted-foreground">{t("juridico.orderNumber", { id: pqrs.order.id.slice(-8) })}</p>
                   ) : null}
                 </div>
-                <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">
-                  {t(`pqrsStatus.${pqrs.status}`)}
-                </span>
+                <Badge tone={PQRS_STATUS_TONE[pqrs.status]}>{t(`pqrsStatus.${pqrs.status}`)}</Badge>
               </div>
 
               <p className="mt-3 text-sm text-muted-foreground">{pqrs.message}</p>
@@ -139,14 +143,14 @@ export default function JuridicoPqrsPage() {
                   href={pqrs.attachmentUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-1 inline-block text-xs font-semibold text-accent underline"
+                  className="mt-1 inline-block text-xs font-semibold text-foreground underline underline-offset-4"
                 >
                   {t("juridico.viewClientAttachment")}
                 </a>
               ) : null}
 
               {pqrs.response ? (
-                <div className="mt-3 rounded-lg bg-muted p-3 text-sm">
+                <div className="mt-3 rounded-lg bg-surface-2 p-3 text-sm">
                   <p className="font-semibold">
                     {t("juridico.responseToClient", {
                       by: [pqrs.respondedBy ? `— ${pqrs.respondedBy.email}` : "", pqrs.respondedAt ? ` (${formatDate(pqrs.respondedAt, locale)})` : ""].join(""),
@@ -158,7 +162,7 @@ export default function JuridicoPqrsPage() {
                       href={pqrs.responseAttachmentUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-1 inline-block text-xs font-semibold text-accent underline"
+                      className="mt-1 inline-block text-xs font-semibold text-foreground underline underline-offset-4"
                     >
                       {t("juridico.viewSentAttachment")}
                     </a>
@@ -178,19 +182,19 @@ export default function JuridicoPqrsPage() {
 
               {openId === pqrs.id ? (
                 <form onSubmit={(e) => handleRespond(pqrs.id, e)} className="mt-4 space-y-2 border-t border-border pt-3">
-                  {error ? <p className="text-sm text-red-600">{error}</p> : null}
+                  {error ? <p className="text-sm text-peligro font-medium">{error}</p> : null}
                   <p className="text-xs text-muted-foreground">{t("juridico.clickTimelineHint")}</p>
                   <textarea
                     name="response"
                     placeholder={t("juridico.responsePlaceholder")}
                     rows={3}
-                    className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+                    className="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm bg-surface"
                   />
                   <textarea
                     name="comment"
                     placeholder={t("juridico.commentPlaceholder")}
                     rows={2}
-                    className="w-full rounded-lg border border-border px-3 py-2 text-sm"
+                    className="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm bg-surface"
                   />
                   <label className="block text-sm text-muted-foreground">
                     {t("juridico.attachEvidence")}
@@ -205,21 +209,21 @@ export default function JuridicoPqrsPage() {
                     <button
                       type="submit"
                       disabled={saving}
-                      className="btn-primary rounded-full px-4 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                      className="inline-flex items-center justify-center bg-foreground font-semibold text-background shadow-suave transition-[translate,box-shadow] duration-200 hover:-translate-y-px hover:shadow-elevada rounded-full px-4 h-9 text-sm disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {saving ? t("juridico.saving") : t("juridico.save")}
                     </button>
                     <button
                       type="button"
                       onClick={() => setOpenId(null)}
-                      className="rounded-full border border-border px-4 py-1.5 text-sm text-muted-foreground"
+                      className="rounded-full border border-border px-4 h-9 text-sm text-muted-foreground inline-flex items-center justify-center bg-surface font-medium transition-colors hover:bg-surface-2 hover:text-foreground"
                     >
                       {t("juridico.cancel")}
                     </button>
                   </div>
                 </form>
               ) : (
-                <button onClick={() => startManaging(pqrs)} className="mt-3 text-sm font-semibold text-accent">
+                <button onClick={() => startManaging(pqrs)} className="mt-3 text-sm font-semibold text-foreground underline-offset-4 hover:underline">
                   {t("juridico.manage")}
                 </button>
               )}
