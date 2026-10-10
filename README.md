@@ -4,6 +4,8 @@
 
 Tienda en línea completa para un comercio colombiano: catálogo, carrito, pagos con Wompi, descuentos con trazabilidad, posventa según la Ley 1480 (PQRS con área jurídica), panel de administración, bilingüe (ES/EN) y con modo oscuro.
 
+**Demo en línea:** [tienda-mulett.vercel.app](https://tienda-mulett.vercel.app). Los pagos usan el ambiente de pruebas de Wompi: compra con la tarjeta `4242 4242 4242 4242` (cualquier fecha futura y CVC) o con el Nequi `3991111111`. La API está en un plan gratuito que se duerme: la primera visita puede tardar cerca de un minuto.
+
 > **Construido dirigiendo un agente de IA** (Claude Code). Yo definí el producto y las reglas del negocio, pedí un análisis técnico completo y decidí el orden de las correcciones; el agente escribió el código y las pruebas. Detalle en [Cómo se construyó con IA](#cómo-se-construyó-con-ia).
 
 ![Catálogo](docs/capturas/inicio.png)
@@ -127,11 +129,11 @@ Suites: pagos con Wompi (webhooks firmados, rechazos, vencimiento, aprobación t
 
 ## Publicar una demo
 
-Todo está listo para publicarla gratis con Neon (base de datos), Render (API, con `render.yaml`), Vercel (frontend) y Cloudflare R2 (archivos, compatible con S3). Paso a paso en [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md).
+La demo está publicada gratis con Neon (base de datos), Render (API, con `render.yaml`) y Vercel (frontend). Los archivos subidos se guardan en el disco del servicio; para conservarlos se puede pasar a Cloudflare R2 u otro almacenamiento S3 sin tocar código. Paso a paso en [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md).
 
 ## Estado y siguientes pasos
 
-- **Fase 3 (resto)**: crear las cuentas y publicar la demo siguiendo la guía de despliegue.
+- **Fase 3**: demo publicada en [tienda-mulett.vercel.app](https://tienda-mulett.vercel.app) (2026-10-10).
 - **Fase 4**: estados de pedido completos (en preparación, entregado), validaciones de carrito, copia de la dirección en el pedido, paginación e índices, tablero de ventas.
 - **Fase 5**: SEO (páginas renderizadas en el servidor, metadatos, sitemap), compra como invitado, pago contra entrega.
 - **Fase 6**: autorización de datos (Ley 1581), identificación del comerciante y facturación electrónica.
@@ -140,4 +142,4 @@ Todo está listo para publicarla gratis con Neon (base de datos), Render (API, c
 
 ### English summary
 
-Complete Colombian e-commerce store: catalog, cart, Wompi payments with retries and automatic expiry, discount traceability, legally compliant after-sales (PQRS), admin panel, bilingual and dark mode. Built with Next.js, Express, PostgreSQL and Prisma by **directing an AI coding agent (Claude Code)**: I defined the product, requested a full technical audit and prioritized the fixes (idempotent payments, revocable sessions, secure OAuth, private signed file links); the agent implemented them with 94 automated checks running in CI.
+Complete Colombian e-commerce store: catalog, cart, Wompi payments with retries and automatic expiry, discount traceability, legally compliant after-sales (PQRS), admin panel, bilingual and dark mode. Built with Next.js, Express, PostgreSQL and Prisma by **directing an AI coding agent (Claude Code)**: I defined the product, requested a full technical audit and prioritized the fixes (idempotent payments, revocable sessions, secure OAuth, private signed file links); the agent implemented them with 94 automated checks running in CI. Live demo (Wompi sandbox): [tienda-mulett.vercel.app](https://tienda-mulett.vercel.app).
