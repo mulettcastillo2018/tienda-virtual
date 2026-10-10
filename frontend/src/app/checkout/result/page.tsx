@@ -3,12 +3,15 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CheckCircle2, Clock, Loader2, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, Loader2, RefreshCw, XCircle } from "lucide-react";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useAuthStore } from "@/store/auth.store";
 import { useCartStore } from "@/store/cart.store";
 import { WompiButton } from "@/components/WompiButton";
 import { useLocale, useT } from "@/lib/i18n";
+import { cn } from "@/lib/cn";
+import { Button, buttonStyles } from "@/components/ui/Button";
+import { Container } from "@/components/ui/Container";
 import type { OrderStatus } from "@/lib/types";
 
 interface PaymentStatus {
@@ -105,7 +108,13 @@ function ResultContent() {
   if (!data) {
     return (
       <div className="py-20 text-center text-muted-foreground">
-        {error ? <p className="text-red-600">{error}</p> : <Loader2 className="mx-auto animate-spin" size={32} />}
+        {error ? (
+          <p role="alert" className="rounded-2xl bg-peligro/10 px-4 py-3 text-sm font-medium text-peligro">
+            {error}
+          </p>
+        ) : (
+          <Loader2 className="mx-auto animate-spin" size={32} />
+        )}
       </div>
     );
   }
@@ -118,16 +127,20 @@ function ResultContent() {
 
   if (PAID_STATUSES.includes(data.status)) {
     return (
-      <div className="text-center">
-        <CheckCircle2 className="mx-auto text-accent" size={56} />
-        <h1 className="mt-4 text-2xl font-bold">{t("paymentResult.paidTitle")}</h1>
+      <div className="animate-aparecer text-center">
+        <span className="mx-auto flex size-20 items-center justify-center rounded-full bg-exito/12 text-exito">
+          <CheckCircle2 size={40} aria-hidden />
+        </span>
+        <h1 className="mt-5 text-3xl font-extrabold tracking-tight">{t("paymentResult.paidTitle")}</h1>
         <p className="mt-2 text-muted-foreground">{t("paymentResult.paidBody", { order: shortId })}</p>
-        {data.needsReview ? <p className="mt-3 text-sm text-amber-600">{t("paymentResult.underReview")}</p> : null}
-        <div className="mt-6 flex justify-center gap-4 text-sm font-semibold">
-          <Link href="/account" className="text-accent">
+        {data.needsReview ? (
+          <p className="mt-4 rounded-2xl bg-aviso/10 px-4 py-3 text-sm font-medium text-aviso">{t("paymentResult.underReview")}</p>
+        ) : null}
+        <div className="mt-8 flex flex-col justify-center gap-2 sm:flex-row">
+          <Link href="/account" className={buttonStyles({ variant: "dark", size: "lg" })}>
             {t("paymentResult.myOrders")}
           </Link>
-          <Link href="/" className="text-accent">
+          <Link href="/" className={buttonStyles({ variant: "secondary", size: "lg" })}>
             {t("paymentResult.keepShopping")}
           </Link>
         </div>
@@ -137,11 +150,13 @@ function ResultContent() {
 
   if (data.status === "CANCELLED") {
     return (
-      <div className="text-center">
-        <XCircle className="mx-auto text-muted-foreground" size={56} />
-        <h1 className="mt-4 text-2xl font-bold">{t("paymentResult.cancelledTitle")}</h1>
+      <div className="animate-aparecer text-center">
+        <span className="mx-auto flex size-20 items-center justify-center rounded-full bg-surface-2 text-muted-foreground">
+          <XCircle size={40} aria-hidden />
+        </span>
+        <h1 className="mt-5 text-3xl font-extrabold tracking-tight">{t("paymentResult.cancelledTitle")}</h1>
         <p className="mt-2 text-muted-foreground">{data.needsReview ? t("paymentResult.cancelledWithPayment") : t("paymentResult.cancelledBody")}</p>
-        <Link href="/cart" className="mt-6 inline-block font-semibold text-accent">
+        <Link href="/cart" className={cn(buttonStyles({ variant: "dark", size: "lg" }), "mt-8")}>
           {t("paymentResult.goToCart")}
         </Link>
       </div>
@@ -150,10 +165,12 @@ function ResultContent() {
 
   // Pendiente de pago.
   return (
-    <div>
+    <div className="animate-aparecer">
       <div className="text-center">
-        <Clock className="mx-auto text-accent" size={48} />
-        <h1 className="mt-4 text-2xl font-bold">
+        <span className="mx-auto flex size-20 items-center justify-center rounded-full bg-accent/10 text-accent">
+          <Clock size={36} aria-hidden />
+        </span>
+        <h1 className="mt-5 text-3xl font-extrabold tracking-tight">
           {data.pendingAtWompi ? t("paymentResult.waitingTitle") : rejected ? t("paymentResult.rejectedTitle") : t("paymentResult.payTitle")}
         </h1>
         <p className="mt-2 text-muted-foreground">
@@ -163,47 +180,55 @@ function ResultContent() {
               ? t("paymentResult.rejectedBody")
               : t("paymentResult.payBody", { order: shortId })}
         </p>
-        {deadline ? <p className="mt-2 text-sm font-semibold">{t("paymentResult.deadline", { time: deadline })}</p> : null}
+        {deadline ? (
+          <p className="mt-4 rounded-2xl bg-surface-2 px-4 py-3 text-sm font-medium">{t("paymentResult.deadline", { time: deadline })}</p>
+        ) : null}
       </div>
 
-      <div className="mt-6 space-y-2 rounded-xl border border-border p-4 text-sm">
+      <dl className="mt-6 grid gap-2 rounded-2xl border border-border bg-background p-4 text-sm">
         <div className="flex justify-between">
-          <span className="text-muted-foreground">{t("checkout.shipping")}</span>
-          <span>{formatCOP(data.shippingCost)}</span>
+          <dt className="text-muted-foreground">{t("checkout.shipping")}</dt>
+          <dd className="tabular-nums">{formatCOP(data.shippingCost)}</dd>
         </div>
-        <div className="flex justify-between text-lg font-bold">
-          <span>{t("checkout.total")}</span>
-          <span>{formatCOP(data.totalAmount)}</span>
+        <div className="flex items-baseline justify-between border-t border-border pt-2">
+          <dt className="font-semibold">{t("checkout.total")}</dt>
+          <dd className="text-2xl font-bold tracking-tight tabular-nums">{formatCOP(data.totalAmount)}</dd>
         </div>
-      </div>
+      </dl>
 
-      {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
+      {error ? (
+        <p role="alert" className="mt-4 rounded-2xl bg-peligro/10 px-4 py-3 text-sm font-medium text-peligro">
+          {error}
+        </p>
+      ) : null}
 
       {!data.pendingAtWompi ? (
-        <div className="mt-6">
+        // El widget de Wompi dibuja su propio botón; aquí solo se centra.
+        <div className="mt-6 flex justify-center">
           {/* Un intento nuevo cada vez que el anterior se rechaza. */}
           <WompiButton key={`${data.lastPayment?.status ?? "none"}`} orderId={data.id} />
         </div>
       ) : null}
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-sm">
-        <button onClick={() => check()} disabled={checking} className="font-semibold text-accent disabled:opacity-50">
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4 text-sm">
+        <Button variant="ghost" size="sm" onClick={() => check()} disabled={checking}>
+          <RefreshCw className={cn(checking && "animate-spin")} />
           {checking ? t("paymentResult.checking") : t("paymentResult.alreadyPaid")}
-        </button>
+        </Button>
         {confirmCancel ? (
-          <span className="flex items-center gap-2">
-            {t("paymentResult.confirmCancel")}
-            <button onClick={cancelOrder} disabled={cancelling} className="font-semibold text-red-600 disabled:opacity-50">
+          <span className="animate-emerger flex items-center gap-1">
+            <span className="mr-1 text-muted-foreground">{t("paymentResult.confirmCancel")}</span>
+            <Button variant="danger" size="sm" onClick={cancelOrder} loading={cancelling}>
               {t("paymentResult.yes")}
-            </button>
-            <button onClick={() => setConfirmCancel(false)} className="font-semibold text-muted-foreground">
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setConfirmCancel(false)}>
               {t("paymentResult.no")}
-            </button>
+            </Button>
           </span>
         ) : (
-          <button onClick={() => setConfirmCancel(true)} className="font-semibold text-muted-foreground hover:text-red-600">
+          <Button variant="ghost" size="sm" onClick={() => setConfirmCancel(true)} className="hover:text-peligro">
             {t("paymentResult.cancelOrder")}
-          </button>
+          </Button>
         )}
       </div>
     </div>
@@ -212,10 +237,12 @@ function ResultContent() {
 
 export default function PaymentResultPage() {
   return (
-    <div className="mx-auto max-w-md px-4 py-16 sm:px-6">
-      <Suspense>
-        <ResultContent />
-      </Suspense>
-    </div>
+    <Container width="narrow" className="py-10 sm:py-16">
+      <div className="rounded-[2rem] border border-border bg-surface p-6 shadow-elevada sm:p-10">
+        <Suspense>
+          <ResultContent />
+        </Suspense>
+      </div>
+    </Container>
   );
 }

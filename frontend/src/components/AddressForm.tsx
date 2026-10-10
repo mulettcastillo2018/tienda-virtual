@@ -2,6 +2,8 @@
 
 import { useState, type FormEvent } from "react";
 import { useT } from "@/lib/i18n";
+import { Button } from "@/components/ui/Button";
+import { Field, Input } from "@/components/ui/Field";
 
 export interface AddressFormValues {
   fullName: string;
@@ -45,75 +47,66 @@ export function AddressForm({ initialValues, onSubmit, onCancel, submitLabel, lo
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
-      <input
-        value={values.fullName}
-        onChange={(e) => update("fullName", e.target.value)}
-        placeholder={t("addressForm.fullName")}
-        required
-        className="w-full rounded-lg border border-border px-3 py-2 text-sm"
-      />
-      <input
-        value={values.addressLine1}
-        onChange={(e) => update("addressLine1", e.target.value)}
-        placeholder={t("addressForm.address")}
-        required
-        className="w-full rounded-lg border border-border px-3 py-2 text-sm"
-      />
-      <input
-        value={values.addressLine2}
-        onChange={(e) => update("addressLine2", e.target.value)}
-        placeholder={t("addressForm.addressLine2")}
-        className="w-full rounded-lg border border-border px-3 py-2 text-sm"
-      />
-      <div className="grid grid-cols-2 gap-3">
-        <input
-          value={values.city}
-          onChange={(e) => update("city", e.target.value)}
-          placeholder={t("addressForm.city")}
-          required
-          className="rounded-lg border border-border px-3 py-2 text-sm"
-        />
-        <input
-          value={values.state}
-          onChange={(e) => update("state", e.target.value)}
-          placeholder={t("addressForm.state")}
-          required
-          className="rounded-lg border border-border px-3 py-2 text-sm"
-        />
+    <form onSubmit={handleSubmit} className="grid gap-4">
+      <Field label={t("addressForm.fullName")}>
+        {(control) => (
+          <Input {...control} value={values.fullName} onChange={(e) => update("fullName", e.target.value)} autoComplete="name" required />
+        )}
+      </Field>
+      <Field label={t("addressForm.address")}>
+        {(control) => (
+          <Input
+            {...control}
+            value={values.addressLine1}
+            onChange={(e) => update("addressLine1", e.target.value)}
+            autoComplete="address-line1"
+            required
+          />
+        )}
+      </Field>
+      <Field label={t("addressForm.addressLine2")}>
+        {(control) => (
+          <Input {...control} value={values.addressLine2} onChange={(e) => update("addressLine2", e.target.value)} autoComplete="address-line2" />
+        )}
+      </Field>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label={t("addressForm.city")}>
+          {(control) => (
+            <Input {...control} value={values.city} onChange={(e) => update("city", e.target.value)} autoComplete="address-level2" required />
+          )}
+        </Field>
+        <Field label={t("addressForm.state")}>
+          {(control) => (
+            <Input {...control} value={values.state} onChange={(e) => update("state", e.target.value)} autoComplete="address-level1" required />
+          )}
+        </Field>
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <input
-          value={values.postalCode}
-          onChange={(e) => update("postalCode", e.target.value)}
-          placeholder={t("addressForm.postalCode")}
-          required
-          className="rounded-lg border border-border px-3 py-2 text-sm"
-        />
-        <input
-          value={values.phone}
-          onChange={(e) => update("phone", e.target.value)}
-          placeholder={t("addressForm.phone")}
-          required
-          className="rounded-lg border border-border px-3 py-2 text-sm"
-        />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label={t("addressForm.postalCode")}>
+          {(control) => (
+            <Input
+              {...control}
+              value={values.postalCode}
+              onChange={(e) => update("postalCode", e.target.value)}
+              autoComplete="postal-code"
+              required
+            />
+          )}
+        </Field>
+        <Field label={t("addressForm.phone")}>
+          {(control) => (
+            <Input {...control} type="tel" value={values.phone} onChange={(e) => update("phone", e.target.value)} autoComplete="tel" required />
+          )}
+        </Field>
       </div>
-      <div className="flex gap-2">
-        <button
-          type="submit"
-          disabled={loading}
-          className="btn-primary flex-1 rounded-full px-6 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-        >
+      <div className="flex flex-wrap gap-2 pt-2">
+        <Button type="submit" size="lg" loading={loading} className="flex-1">
           {loading ? t("addressForm.saving") : submitLabel}
-        </button>
+        </Button>
         {onCancel ? (
-          <button
-            type="button"
-            onClick={onCancel}
-            className="rounded-full border border-border px-6 py-2.5 text-sm text-muted-foreground"
-          >
+          <Button variant="secondary" size="lg" onClick={onCancel}>
             {t("addressForm.cancel")}
-          </button>
+          </Button>
         ) : null}
       </div>
     </form>

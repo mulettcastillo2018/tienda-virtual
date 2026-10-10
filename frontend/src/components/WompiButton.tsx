@@ -67,7 +67,7 @@ export function WompiButton({ orderId }: { orderId: string }) {
     };
   }, [orderId, token]);
 
-  if (error) return <p className="text-sm text-red-600">{error}</p>;
+  if (error) return <p className="text-sm font-medium text-peligro">{error}</p>;
 
   return <div ref={containerRef} />;
 }
