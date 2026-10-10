@@ -22,8 +22,8 @@ export function PaymentBadges() {
 
   return (
     <div>
-      <h2 className="text-center text-sm font-bold text-foreground">{t("badges.weAccept")}</h2>
-      <div className="mt-4 flex flex-wrap items-center justify-center gap-8">
+      <h2 className="text-xs font-semibold tracking-[0.14em] text-foreground uppercase">{t("badges.weAccept")}</h2>
+      <div className="mt-5 flex flex-wrap items-center gap-3">
         {methods.map((method) => (
           <a
             key={method.id}
@@ -31,7 +31,7 @@ export function PaymentBadges() {
             target="_blank"
             rel="noopener noreferrer"
             title={method.name}
-            className="transition-transform duration-200 hover:scale-110"
+            className="flex h-11 items-center rounded-xl bg-white px-3.5 ring-1 ring-border transition-all duration-300 ease-salida hover:-translate-y-0.5 hover:shadow-suave"
           >
             <Image
               src={method.logoUrl}

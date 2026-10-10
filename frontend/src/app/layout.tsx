@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
+import { BottomTabs } from "@/components/layout/BottomTabs";
 import { Toast } from "@/components/layout/Toast";
 import { WhatsAppFloatButton } from "@/components/layout/WhatsAppFloatButton";
 import { DecorativeBackground } from "@/components/layout/DecorativeBackground";
@@ -42,12 +43,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body className="flex min-h-full flex-col" suppressHydrationWarning>
+      {/* En celular se deja espacio abajo para la barra de pestañas fija */}
+      <body className="flex min-h-full flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0" suppressHydrationWarning>
         <DecorativeBackground />
         <LocaleEffect />
         <Navbar />
         <main className="flex-1">{children}</main>
         <Footer />
+        <BottomTabs />
         <Toast />
         <WhatsAppFloatButton />
       </body>

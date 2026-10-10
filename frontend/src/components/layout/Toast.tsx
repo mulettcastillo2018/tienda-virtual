@@ -16,10 +16,17 @@ export function Toast() {
 
   if (!message) return null;
 
+  // En celular flota por encima de la barra inferior (4.5rem + zona segura).
   return (
-    <div className="fixed inset-x-0 bottom-6 z-50 flex justify-center px-4">
-      <div className="flex items-center gap-2 rounded-full bg-foreground px-4 py-2.5 text-sm font-medium text-background shadow-lg">
-        <Check size={16} />
+    <div className="pointer-events-none fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom)+0.75rem)] z-50 flex justify-center px-4 md:bottom-6">
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex max-w-full animate-emerger items-center gap-2.5 rounded-full bg-foreground py-2 pr-4 pl-2.5 text-sm leading-snug font-medium text-background shadow-flotante ring-1 ring-background/10"
+      >
+        <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-exito text-background">
+          <Check size={12} strokeWidth={3.5} />
+        </span>
         {message}
       </div>
     </div>

@@ -11,7 +11,7 @@ export function LanguageToggle() {
       onClick={toggleLocale}
       title={locale === "es" ? "Switch to English" : "Cambiar a español"}
       aria-label={locale === "es" ? "Switch to English" : "Cambiar a español"}
-      className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground transition-colors hover:bg-accent hover:text-white"
+      className="flex size-9 items-center justify-center rounded-full text-xs font-bold tracking-wide text-muted-foreground transition-colors duration-200 hover:bg-surface-2 hover:text-foreground active:scale-95"
     >
       {locale === "es" ? "EN" : "ES"}
     </button>

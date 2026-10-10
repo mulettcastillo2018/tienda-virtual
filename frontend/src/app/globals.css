@@ -208,9 +208,10 @@
 
 /* ---- Utilidades propias ---- */
 
-/* Vidrio esmerilado: solo para la barra flotante y las ofertas relámpago. */
+/* Vidrio esmerilado: solo para la barra flotante y las ofertas relámpago.
+   La opacidad se puede subir con [--vidrio-opacidad:88%] donde haga falta más lectura. */
 @utility vidrio {
-  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  background: color-mix(in srgb, var(--surface) var(--vidrio-opacidad, 72%), transparent);
   border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
   backdrop-filter: blur(20px) saturate(1.5);
   -webkit-backdrop-filter: blur(20px) saturate(1.5);

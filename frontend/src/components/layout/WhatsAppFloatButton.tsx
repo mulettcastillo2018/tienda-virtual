@@ -29,10 +29,11 @@ export function WhatsAppFloatButton() {
       target="_blank"
       rel="noopener noreferrer"
       title={t("whatsapp.title")}
-      className="fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg transition-transform duration-200 hover:scale-110"
-      style={{ bottom: "calc(1.25rem + env(safe-area-inset-bottom, 0px))" }}
+      aria-label={t("whatsapp.title")}
+      // En celular queda por encima de la barra inferior (4.5rem + zona segura).
+      className="group fixed right-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom)+0.75rem)] z-40 flex size-12 items-center justify-center rounded-full bg-[#25D366] text-white shadow-[0_12px_28px_-8px_rgb(37_211_102/0.6),0_2px_6px_rgb(0_0_0/0.12)] ring-1 ring-black/5 transition-all duration-300 ease-resorte hover:-translate-y-1 hover:scale-105 hover:shadow-[0_18px_34px_-8px_rgb(37_211_102/0.7),0_2px_6px_rgb(0_0_0/0.12)] active:scale-95 md:right-6 md:bottom-6 md:size-14 print:hidden"
     >
-      <MessageCircle size={28} fill="white" />
+      <MessageCircle size={26} fill="white" className="transition-transform duration-300 ease-resorte group-hover:rotate-[-8deg] md:size-7" />
     </a>
   );
 }

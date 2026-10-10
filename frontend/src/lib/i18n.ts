@@ -27,6 +27,8 @@ const es: Dict = {
     login: "Ingresar",
     logout: "Cerrar sesión",
     logoutToast: "Sesión cerrada",
+    cart: "Carrito",
+    account: "Cuenta",
   },
   footer: {
     terms: "Términos y condiciones",
@@ -541,6 +543,8 @@ const en: Dict = {
     login: "Sign in",
     logout: "Sign out",
     logoutToast: "Signed out",
+    cart: "Cart",
+    account: "Account",
   },
   footer: {
     terms: "Terms and conditions",
