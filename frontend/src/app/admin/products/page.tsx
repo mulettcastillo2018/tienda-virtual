@@ -113,6 +113,7 @@ export default function AdminProductsPage() {
                   heightCm: product.heightCm,
                   depthCm: product.depthCm,
                   sku: product.sku,
+                  taxRate: product.taxRate,
                   isActive: product.isActive,
                 }}
                 onSubmit={(values) => handleUpdate(product.id, values)}

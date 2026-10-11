@@ -15,7 +15,7 @@ import { cn } from "@/lib/cn";
 import { magnetic } from "@/lib/magnetic";
 import { Button, buttonStyles } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
-import { Field, Input } from "@/components/ui/Field";
+import { Field, Input, Select } from "@/components/ui/Field";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { Order, OrderQuote, PaymentOption, ShippingAddress } from "@/lib/types";
 
@@ -102,6 +102,11 @@ export default function CheckoutPage() {
   const emailRef = useRef<HTMLInputElement>(null);
   const [quote, setQuote] = useState<OrderQuote | null>(null);
   const [paymentOption, setPaymentOption] = useState<PaymentOption>("ONLINE");
+  // Factura a nombre de una persona o empresa (si no, consumidor final).
+  const [wantsInvoice, setWantsInvoice] = useState(false);
+  const [billing, setBilling] = useState({ idType: "13", idNumber: "", name: "" });
+  // Invitado: autorización de tratamiento de datos (Ley 1581).
+  const [acceptPrivacy, setAcceptPrivacy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -203,15 +208,21 @@ export default function CheckoutPage() {
     }
   }
 
+  const billingBody = wantsInvoice ? { idType: billing.idType, idNumber: billing.idNumber.trim(), name: billing.name.trim() } : null;
+
   async function handleConfirmOrder() {
     if (!address) return;
+    if (wantsInvoice && (billing.idNumber.trim().length < 3 || billing.name.trim().length < 2)) {
+      setError(t("checkout.billingIncomplete"));
+      return;
+    }
     setError(null);
     setLoading(true);
     try {
       if (guest) {
         const created = await apiFetch<Order & { accessToken: string }>("/orders/guest-checkout", {
           method: "POST",
-          body: JSON.stringify({ email: email.trim(), address, items: guestItems, paymentOption }),
+          body: JSON.stringify({ email: email.trim(), address, items: guestItems, paymentOption, billing: billingBody, acceptPrivacy }),
         });
         clearGuestCart();
         router.push(`/checkout/result?orderId=${created.id}&t=${encodeURIComponent(created.accessToken)}`);
@@ -219,7 +230,7 @@ export default function CheckoutPage() {
         const created = await apiFetch<Order>("/orders/checkout", {
           method: "POST",
           token,
-          body: JSON.stringify({ shippingAddressId: address.id, paymentOption }),
+          body: JSON.stringify({ shippingAddressId: address.id, paymentOption, billing: billingBody }),
         });
         // El pedido queda reservado y el carrito vacío: el pago (y sus
         // reintentos) se hace en la página de resultado.
@@ -415,12 +426,56 @@ export default function CheckoutPage() {
                 {!quote ? <Skeleton className="h-[4.5rem] rounded-2xl" /> : null}
               </fieldset>
 
+              <div className="grid gap-3">
+                <label className="flex items-center gap-2.5 text-sm font-medium">
+                  <input type="checkbox" checked={wantsInvoice} onChange={(event) => setWantsInvoice(event.target.checked)} className="size-4" />
+                  {t("checkout.wantsInvoice")}
+                </label>
+                {wantsInvoice ? (
+                  <div className="animate-aparecer grid gap-3 rounded-2xl border border-border p-4 sm:grid-cols-[10rem_minmax(0,1fr)]">
+                    <Field label={t("checkout.idType")}>
+                      {(control) => (
+                        <Select {...control} value={billing.idType} onChange={(event) => setBilling({ ...billing, idType: event.target.value })}>
+                          <option value="13">{t("checkout.idCC")}</option>
+                          <option value="31">{t("checkout.idNIT")}</option>
+                          <option value="22">{t("checkout.idCE")}</option>
+                          <option value="41">{t("checkout.idPassport")}</option>
+                        </Select>
+                      )}
+                    </Field>
+                    <Field label={t("checkout.idNumber")} hint={billing.idType === "31" ? t("checkout.nitHint") : undefined}>
+                      {(control) => (
+                        <Input {...control} value={billing.idNumber} maxLength={20} onChange={(event) => setBilling({ ...billing, idNumber: event.target.value })} />
+                      )}
+                    </Field>
+                    <Field label={billing.idType === "31" ? t("checkout.companyName") : t("checkout.personName")} className="sm:col-span-2">
+                      {(control) => <Input {...control} value={billing.name} maxLength={150} onChange={(event) => setBilling({ ...billing, name: event.target.value })} />}
+                    </Field>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">{t("checkout.finalConsumer")}</p>
+                )}
+              </div>
+
+              {guest ? (
+                <label className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                  <input type="checkbox" checked={acceptPrivacy} onChange={(event) => setAcceptPrivacy(event.target.checked)} className="mt-0.5 size-4 shrink-0" />
+                  <span>
+                    {t("checkout.acceptPrivacy")}{" "}
+                    <Link href="/privacidad" target="_blank" className="font-semibold text-foreground underline underline-offset-4">
+                      {t("login.privacyPolicy")}
+                    </Link>
+                    .
+                  </span>
+                </label>
+              ) : null}
+
               {/* En escritorio el total está en el resumen lateral */}
               <div className="flex items-baseline justify-between lg:hidden">
                 <span className="text-muted-foreground">{t("checkout.total")}</span>
                 <span className="text-xl font-bold tabular-nums">{total !== null ? formatCOP(total) : "—"}</span>
               </div>
-              <Button size="lg" block onClick={handleConfirmOrder} loading={loading} disabled={!quote} {...magnetic}>
+              <Button size="lg" block onClick={handleConfirmOrder} loading={loading} disabled={!quote || (guest && !acceptPrivacy)} {...magnetic}>
                 {loading ? t("checkout.creatingOrder") : cod ? t("checkout.confirmOrder") : t("checkout.confirmAndPay")}
               </Button>
             </div>
@@ -467,6 +522,9 @@ export default function CheckoutPage() {
               <dt className="font-semibold">{t("checkout.total")}</dt>
               <dd className="text-xl font-bold tracking-tight tabular-nums">{formatCOP(total ?? subtotal)}</dd>
             </div>
+            {quote && quote.taxIncluded > 0 ? (
+              <p className="text-right text-xs text-muted-foreground">{t("checkout.taxIncluded", { amount: formatCOP(quote.taxIncluded) })}</p>
+            ) : null}
           </dl>
           <p className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground">
             <ShieldCheck size={14} aria-hidden className="text-exito" />

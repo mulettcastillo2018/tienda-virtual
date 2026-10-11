@@ -5,11 +5,13 @@ import { usePathname } from "next/navigation";
 import {
   Boxes,
   CreditCard,
+  FileText,
   LayoutDashboard,
   MessageSquareText,
   Package,
   Percent,
   Phone,
+  RotateCcw,
   Share2,
   ShieldAlert,
   Tags,
@@ -30,6 +32,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const TABS = [
     { href: "/admin", label: t("adminNav.orders"), Icon: Package },
     { href: "/admin/sales", label: t("adminNav.sales"), Icon: TrendingUp },
+    { href: "/admin/returns", label: t("adminNav.returns"), Icon: RotateCcw },
+    { href: "/admin/billing", label: t("adminNav.billing"), Icon: FileText },
     { href: "/admin/products", label: t("adminNav.products"), Icon: Boxes },
     { href: "/admin/categories", label: t("adminNav.categories"), Icon: Tags },
     { href: "/admin/discounts", label: t("adminNav.discounts"), Icon: Percent },

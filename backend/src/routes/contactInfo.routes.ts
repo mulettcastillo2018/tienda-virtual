@@ -3,10 +3,13 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { requireAuth, requireAdmin } from "../middleware/auth.middleware";
 import { catchAsync } from "../lib/catchAsync";
+import { parseNit } from "../lib/tax";
 
 export const contactInfoRouter = Router();
 
 const DEFAULTS = {
+  legalName: "",
+  nit: "",
   phone: "+57 300 000 0000",
   whatsapp: "+57 300 000 0000",
   email: "contacto@tiendavirtual.test",
@@ -22,6 +25,18 @@ contactInfoRouter.get(
 );
 
 const contactInfoSchema = z.object({
+  // Opcionales: si no se envían, no se tocan.
+  legalName: z.string().trim().max(200).optional(),
+  // Vacío mientras no se configure; si se escribe, con dígito de verificación correcto.
+  nit: z
+    .string()
+    .trim()
+    .refine((value) => value === "" || parseNit(value) !== null, "NIT inválido: escríbelo con el dígito de verificación (p. ej. 900123456-7)")
+    .transform((value) => {
+      const nit = parseNit(value);
+      return nit ? `${nit.number}-${nit.dv}` : "";
+    })
+    .optional(),
   phone: z.string().trim().min(1),
   whatsapp: z.string().trim().min(1),
   email: z.string().trim().email(),

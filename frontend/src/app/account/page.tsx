@@ -2,13 +2,15 @@
 
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
-import { Banknote, ChevronDown, KeyRound, MapPin, MessageSquareText, Package, Pencil, Truck, UserRound, type LucideIcon } from "lucide-react";
+import { Banknote, ChevronDown, KeyRound, MapPin, MessageSquareText, Package, Pencil, ShieldCheck, Truck, UserRound, type LucideIcon } from "lucide-react";
 import { apiFetch, ApiError, uploadFile } from "@/lib/api";
 import { useAuthStore } from "@/store/auth.store";
 import { useToastStore } from "@/store/toast.store";
 import { AddressForm, type AddressFormValues } from "@/components/AddressForm";
 import { PqrsTimeline } from "@/components/PqrsTimeline";
 import { OrderProgress } from "@/components/OrderProgress";
+import { OrderAfterSales, type ReturnBody } from "@/components/OrderAfterSales";
+import { PrivacySettings } from "@/components/PrivacySettings";
 import { useT, useLocale } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 import { ORDER_STATUS_TONE, orderStatusKey, PQRS_STATUS_TONE } from "@/lib/statusTones";
@@ -283,7 +285,15 @@ export default function AccountPage() {
     { id: "direcciones", label: t("account.myAddresses"), Icon: MapPin },
     { id: "datos", label: t("account.accountData"), Icon: UserRound },
     { id: "seguridad", label: t("account.security"), Icon: KeyRound },
+    { id: "privacidad", label: t("account.privacyTitle"), Icon: ShieldCheck },
   ];
+
+  // Retracto o reversión: se pide y se vuelve a leer el pedido para ver su estado.
+  async function requestReturn(orderId: string, body: ReturnBody) {
+    await apiFetch("/returns", { method: "POST", token, body: JSON.stringify({ orderId, ...body }) });
+    setOrders(await apiFetch<Order[]>("/orders/me", { token }));
+    showToast(t("afterSales.sentToast"));
+  }
   const email = profile?.email ?? authUser.email;
 
   return (
@@ -423,6 +433,7 @@ export default function AccountPage() {
                                 {t("account.shippedBy", { carrier: order.carrier ?? "", tracking: order.trackingNumber })}
                               </p>
                             ) : null}
+                            <OrderAfterSales order={order} submit={(body) => requestReturn(order.id, body)} />
                           </div>
                         ) : null}
                       </li>
@@ -688,6 +699,10 @@ export default function AccountPage() {
                   </Button>
                 </div>
               </form>
+            </AccountSection>
+
+            <AccountSection id="privacidad" icon={ShieldCheck} title={t("account.privacyTitle")}>
+              <PrivacySettings />
             </AccountSection>
           </div>
         </div>

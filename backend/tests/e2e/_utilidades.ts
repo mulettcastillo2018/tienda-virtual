@@ -119,6 +119,11 @@ export async function enviarWebhook(evento: unknown): Promise<Respuesta> {
 
 export async function limpiar(c: Creados) {
   const pedidos = (await prisma.order.findMany({ where: { OR: [{ userId: { in: c.usuarios } }, { items: { some: { productId: { in: c.productos } } } }] }, select: { id: true } })).map((o) => o.id);
+  await prisma.consentRecord.deleteMany({ where: { OR: [{ orderId: { in: pedidos } }, { userId: { in: c.usuarios } }] } });
+  await prisma.returnRequest.deleteMany({ where: { orderId: { in: pedidos } } });
+  // Las notas crédito apuntan a su factura: primero ellas.
+  await prisma.fiscalDocument.deleteMany({ where: { orderId: { in: pedidos }, cancelsId: { not: null } } });
+  await prisma.fiscalDocument.deleteMany({ where: { orderId: { in: pedidos } } });
   await prisma.pqrs.deleteMany({ where: { OR: [{ orderId: { in: pedidos } }, { userId: { in: c.usuarios } }] } });
   await prisma.storeReview.deleteMany({ where: { orderId: { in: pedidos } } });
   await prisma.payment.deleteMany({ where: { orderId: { in: pedidos } } });

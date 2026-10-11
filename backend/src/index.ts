@@ -19,10 +19,14 @@ import { uploadsRouter } from "./routes/uploads.routes";
 import { pqrsRouter } from "./routes/pqrs.routes";
 import { salesRouter } from "./routes/sales.routes";
 import { settingsRouter } from "./routes/settings.routes";
+import { privacyRouter } from "./routes/privacy.routes";
+import { returnsRouter } from "./routes/returns.routes";
+import { fiscalRouter } from "./routes/fiscal.routes";
 import { oauthRouter } from "./routes/oauth.routes";
 import { reviewsRouter } from "./routes/reviews.routes";
 import { filesRouter } from "./routes/files.routes";
 import { startOrderExpiryJob } from "./services/payments.service";
+import { startFiscalJob } from "./services/fiscal/fiscal.service";
 import { UPLOADS_DIR } from "./services/storage";
 import { checkEnvironment } from "./lib/env";
 import { prisma } from "./lib/prisma";
@@ -96,6 +100,9 @@ app.use("/uploads", uploadsRouter);
 app.use("/pqrs", pqrsRouter);
 app.use("/sales", salesRouter);
 app.use("/settings", settingsRouter);
+app.use("/privacy", privacyRouter);
+app.use("/returns", returnsRouter);
+app.use("/fiscal", fiscalRouter);
 app.use("/store-reviews", reviewsRouter);
 app.use("/files", filesRouter);
 
@@ -116,4 +123,5 @@ app.listen(port, () => {
   console.log(`API escuchando en http://localhost:${port}`);
   // Cancela los pedidos que no se pagaron a tiempo y libera su inventario.
   startOrderExpiryJob();
+  startFiscalJob();
 });

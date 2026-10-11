@@ -63,11 +63,13 @@ export default function LoginPage() {
     const password = (form.elements.namedItem("password") as HTMLInputElement).value;
     const phone =
       mode === "register" ? (form.elements.namedItem("phone") as HTMLInputElement).value : undefined;
+    const checked = (name: string) => (form.elements.namedItem(name) as HTMLInputElement | null)?.checked ?? false;
+    const consent = mode === "register" ? { acceptPrivacy: checked("acceptPrivacy"), marketing: checked("marketing") } : {};
 
     try {
       const data = await apiFetch<{ token: string; user: AuthUser }>(
         mode === "login" ? "/auth/login" : "/auth/register",
-        { method: "POST", body: JSON.stringify({ email, password, ...(phone ? { phone } : {}) }) }
+        { method: "POST", body: JSON.stringify({ email, password, ...(phone ? { phone } : {}), ...consent }) }
       );
 
       if (mode === "login") {
@@ -156,7 +158,25 @@ export default function LoginPage() {
             <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="size-4 shrink-0" />
             {t("login.rememberMe")}
           </label>
-        ) : null}
+        ) : (
+          // Autorización previa, expresa e informada (Ley 1581 de 2012); las ofertas, aparte y opcionales.
+          <div className="grid gap-2.5 text-sm text-muted-foreground">
+            <label className="flex items-start gap-2.5">
+              <input type="checkbox" name="acceptPrivacy" required className="mt-0.5 size-4 shrink-0" />
+              <span>
+                {t("login.acceptPrivacy")}{" "}
+                <Link href="/privacidad" target="_blank" className="font-semibold text-foreground underline underline-offset-4">
+                  {t("login.privacyPolicy")}
+                </Link>
+                .
+              </span>
+            </label>
+            <label className="flex items-start gap-2.5">
+              <input type="checkbox" name="marketing" className="mt-0.5 size-4 shrink-0" />
+              {t("login.acceptMarketing")}
+            </label>
+          </div>
+        )}
 
         {error ? (
           <p role="alert" className="rounded-2xl bg-peligro/10 px-4 py-3 text-sm font-medium text-peligro">
@@ -203,6 +223,13 @@ export default function LoginPage() {
             Facebook
           </button>
         </div>
+        <p className="text-center text-xs text-muted-foreground">
+          {t("login.socialNotice")}{" "}
+          <Link href="/privacidad" target="_blank" className="underline underline-offset-4">
+            {t("login.privacyPolicy")}
+          </Link>
+          .
+        </p>
       </form>
     </AuthCard>
   );

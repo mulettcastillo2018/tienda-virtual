@@ -26,7 +26,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8,
       images: product.images.slice(0, 1),
     })),
-    ...["/envios", "/devoluciones", "/terminos"].map((path) => ({
+    ...["/envios", "/devoluciones", "/terminos", "/privacidad"].map((path) => ({
       url: `${SITE_URL}${path}`,
       changeFrequency: "yearly" as const,
       priority: 0.3,

@@ -1,6 +1,7 @@
 import { prisma } from "../lib/prisma";
 import { sendOrderConfirmationEmail } from "./email.service";
 import { guestOrderUrl } from "../lib/orderAccess";
+import { scheduleFiscalProcessing } from "./fiscal/fiscal.service";
 import {
   cancelPendingOrder,
   findExpiredPendingOrders,
@@ -100,7 +101,10 @@ export async function applyWompiTransaction(trx: WompiTransaction, raw?: unknown
     return { result: "applied" as const, paid };
   });
 
-  if (outcome.paid) await sendConfirmation(payment.orderId, trx);
+  if (outcome.paid) {
+    await sendConfirmation(payment.orderId, trx);
+    scheduleFiscalProcessing();
+  }
   return outcome.result;
 }
 

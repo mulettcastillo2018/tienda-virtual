@@ -123,6 +123,8 @@ const productSchema = z.object({
     )
     .length(4, "Se requieren exactamente 4 imágenes"),
   weightInGrams: z.number().int().positive(),
+  // IVA incluido en el precio.
+  taxRate: z.union([z.literal(0), z.literal(5), z.literal(19)]).default(19),
   widthCm: z.number().positive(),
   heightCm: z.number().positive(),
   depthCm: z.number().positive(),

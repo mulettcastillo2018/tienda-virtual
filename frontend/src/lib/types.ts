@@ -22,6 +22,8 @@ export interface Product {
   heightCm: number;
   depthCm: number;
   sku: string;
+  // IVA incluido en el precio: 19, 5 o 0 (excluido).
+  taxRate: number;
   isActive: boolean;
   createdAt: string;
 }
@@ -88,6 +90,8 @@ export interface OrderQuote {
   shippingCost: number;
   carrier: string;
   total: number;
+  // IVA que ya va incluido en esos precios.
+  taxIncluded: number;
   cod: { available: boolean; reason: CodUnavailableReason | null; fee: number; maxAmount: number; cities: string[] };
 }
 
@@ -105,7 +109,8 @@ export type OrderStatus =
   | "PROCESSING"
   | "SHIPPED"
   | "DELIVERED"
-  | "CANCELLED";
+  | "CANCELLED"
+  | "REFUNDED";
 
 export interface Order {
   id: string;
@@ -140,6 +145,15 @@ export interface Order {
   shippingAddress?: OrderShipping;
   // Cliente: cuándo cambió de estado (sin notas internas).
   timeline?: { status: OrderStatus; at: string }[];
+  // Factura a nombre de alguien (si no, consumidor final).
+  billingIdType?: string | null;
+  billingIdNumber?: string | null;
+  billingName?: string | null;
+  // Retracto y reversión: lo pedido y lo que todavía se puede pedir.
+  returnRequests?: ReturnRequestSummary[];
+  returnOptions?: Record<ReturnKind, { available: boolean; deadline: string | null }>;
+  // Facturas electrónicas aceptadas por la DIAN.
+  invoices?: { type: "INVOICE" | "CREDIT_NOTE"; fullNumber: string; uniqueCode: string | null; createdAt: string }[];
   // Panel: la bitácora completa.
   statusLogs?: { fromStatus: OrderStatus | null; toStatus: OrderStatus; reason: string | null; changedAt: string; changedBy: { email: string } | null }[];
 }
@@ -260,6 +274,9 @@ export interface PaymentMethod {
 }
 
 export interface ContactInfo {
+  // Identificación del comerciante (Ley 1480, art. 50).
+  legalName: string;
+  nit: string;
   phone: string;
   whatsapp: string;
   email: string;
@@ -278,4 +295,81 @@ export interface StoreReviewsResponse {
   items: StoreReview[];
   average: number;
   total: number;
+}
+
+// --- Retracto y reversión del pago (Ley 1480, arts. 47 y 51) ---
+
+export type ReturnKind = "RETRACTO" | "REVERSION";
+export type ReturnStatus = "REQUESTED" | "APPROVED" | "RECEIVED" | "REFUNDED" | "REJECTED";
+export type ReversionCause = "FRAUDE" | "NO_SOLICITADA" | "NO_RECIBIDO" | "DEFECTUOSO";
+
+export interface ReturnRequestSummary {
+  id: string;
+  type: ReturnKind;
+  status: ReturnStatus;
+  cause: ReversionCause | null;
+  storeNote: string | null;
+  deadlineAt: string;
+  createdAt: string;
+  refundReference: string | null;
+}
+
+export interface AdminReturn extends ReturnRequestSummary {
+  customerNote: string | null;
+  order: {
+    id: string;
+    status: OrderStatus;
+    totalAmount: number;
+    paymentOption: PaymentOption;
+    guestEmail: string | null;
+    shippingFullName: string | null;
+    shippingPhone: string | null;
+    user: { email: string } | null;
+    payments: { paymentMethod: string | null; providerTransactionId: string | null }[];
+  };
+}
+
+// --- Factura electrónica ---
+
+export type FiscalDocumentStatus = "PENDING" | "SENT" | "ACCEPTED" | "REJECTED";
+
+export interface FiscalSettingsView {
+  enabled: boolean;
+  enabledAt: string | null;
+  alanubeUrl: string;
+  alanubeCompanyId: string | null;
+  resolutionNumber: string | null;
+  prefix: string | null;
+  rangeFrom: number | null;
+  rangeTo: number | null;
+  startDate: string | null;
+  endDate: string | null;
+  technicalKey: string | null;
+  nextNumber: number | null;
+  creditNotePrefix: string;
+  creditNoteNext: number;
+  shippingTaxRate: number;
+  hasToken: boolean;
+  tokenFromEnv: boolean;
+  tokenSaved: boolean;
+  missing: string[];
+  warnings: string[];
+}
+
+export interface FiscalDocumentRow {
+  id: string;
+  orderId: string;
+  type: "INVOICE" | "CREDIT_NOTE";
+  prefix: string;
+  number: number;
+  status: FiscalDocumentStatus;
+  uniqueCode: string | null;
+  message: string | null;
+  errors: string[];
+  customerName: string;
+  customerId: string;
+  total: number;
+  attempts: number;
+  createdAt: string;
+  cancels: { prefix: string; number: number } | null;
 }

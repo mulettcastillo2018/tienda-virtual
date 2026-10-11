@@ -16,7 +16,7 @@ export async function probarInvitado() {
     const correo = `Invitado_${Date.now()}@Tienda.test`;
     const direccion = { fullName: "Invitada E2E", addressLine1: "Carrera 70 # 10-20", city: "Medellín", state: "Antioquia", postalCode: "050021", phone: "3009998877" };
     const comprar = (items: { productId: string; quantity: number }[], extra: object = {}) =>
-      req("POST", "/orders/guest-checkout", { email: correo, address: direccion, items, ...extra });
+      req("POST", "/orders/guest-checkout", { email: correo, address: direccion, items, acceptPrivacy: true, ...extra });
     // Peticiones con el enlace del pedido (cabecera X-Order-Token).
     const conEnlace = async (method: string, path: string, token: string | undefined) => {
       const res = await fetch(API_URL + path, { method, headers: { "Content-Type": "application/json", ...(token ? { "X-Order-Token": token } : {}) } });

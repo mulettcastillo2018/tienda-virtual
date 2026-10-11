@@ -22,6 +22,7 @@ export interface ProductFormValues {
   heightCm: number;
   depthCm: number;
   sku: string;
+  taxRate: number;
   isActive: boolean;
 }
 
@@ -41,6 +42,7 @@ const EMPTY_VALUES: Omit<ProductFormValues, "categoryId"> = {
   heightCm: 0,
   depthCm: 0,
   sku: "",
+  taxRate: 19,
   isActive: true,
 };
 
@@ -175,6 +177,16 @@ export function ProductForm({ categories, initialValues, onSubmit, onCancel, sub
             {c.name}
           </option>
         ))}
+      </select>
+      <select
+        value={values.taxRate}
+        onChange={(e) => update("taxRate", Number(e.target.value))}
+        aria-label={t("productForm.taxRate")}
+        className="w-full rounded-xl border border-border px-3.5 h-11 text-sm bg-surface"
+      >
+        <option value={19}>{t("productForm.tax19")}</option>
+        <option value={5}>{t("productForm.tax5")}</option>
+        <option value={0}>{t("productForm.tax0")}</option>
       </select>
       <input
         value={values.sku}

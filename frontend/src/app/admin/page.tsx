@@ -18,7 +18,7 @@ import { SearchForm } from "@/components/ui/SearchForm";
 import type { AdminOrdersPage, Order, OrderStatus } from "@/lib/types";
 
 const PAGE_SIZE = 20;
-const STATUSES: OrderStatus[] = ["PENDING", "PAID", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"];
+const STATUSES: OrderStatus[] = ["PENDING", "PAID", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED", "REFUNDED"];
 type Tab = "ALL" | "REVIEW" | "TO_CONFIRM" | OrderStatus;
 
 function formatCOP(amount: number) {
@@ -274,6 +274,9 @@ export default function AdminOrdersPage() {
               <span className="text-muted-foreground"> · {t("adminOrders.items", { n: itemCount })}</span>
               {order.codFee > 0 ? <span className="text-muted-foreground"> · {t("adminOrders.codFeeIncluded", { amount: formatCOP(order.codFee) })}</span> : null}
             </p>
+            {order.billingName ? (
+              <p className="mt-1 text-xs text-muted-foreground">{t("adminOrders.billTo", { name: order.billingName, id: order.billingIdNumber ?? "" })}</p>
+            ) : null}
             {lastPayment ? (
               <p className="mt-1 text-xs text-muted-foreground">
                 {t("adminOrders.lastPayment", {

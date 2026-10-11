@@ -1,6 +1,7 @@
 import type { PaymentOption, Product } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { getEffectivePrice, isDiscountActive } from "../lib/pricing";
+import { includedTax } from "../lib/tax";
 import { calculateShippingQuote } from "./carrier.service";
 import { paymentDeadline } from "./orderLifecycle";
 import { cashOnDelivery, COD_UNAVAILABLE_MESSAGE, getStoreSettings } from "./storeSettings";
@@ -20,6 +21,13 @@ export const MAX_PER_PRODUCT = 99;
 export interface CheckoutLine {
   productId: string;
   quantity: number;
+}
+
+// Factura a nombre de alguien (si no, va a consumidor final).
+export interface BillingInfo {
+  idType: string;
+  idNumber: string;
+  name: string;
 }
 
 export interface CheckoutAddress {
@@ -62,13 +70,18 @@ export async function resolveLines(lines: CheckoutLine[]): Promise<ResolvedLine[
 }
 
 // Lo que cuesta el pedido a una dirección: productos, envío y, si aplica, el
-// recargo del pago contra entrega.
+// recargo del pago contra entrega. `taxIncluded`: el IVA que ya va en esos
+// precios (para mostrarlo antes de pagar).
 export async function quoteOrder(lines: ResolvedLine[], address: Pick<CheckoutAddress, "postalCode" | "city">) {
   const weight = lines.reduce((sum, line) => sum + line.product.weightInGrams * line.quantity, 0);
   const shipping = calculateShippingQuote(address.postalCode, weight);
   const subtotal = lines.reduce((sum, line) => sum + getEffectivePrice(line.product) * line.quantity, 0);
   const cod = cashOnDelivery(await getStoreSettings(), address.city, subtotal + shipping.cost);
-  return { subtotal, shippingCost: shipping.cost, carrier: shipping.carrier, total: subtotal + shipping.cost, cod };
+  const fiscal = await prisma.fiscalSettings.findUnique({ where: { id: "main" }, select: { shippingTaxRate: true } });
+  const taxIncluded =
+    lines.reduce((sum, line) => sum + includedTax(getEffectivePrice(line.product) * line.quantity, line.product.taxRate), 0) +
+    includedTax(shipping.cost, fiscal?.shippingTaxRate ?? 0);
+  return { subtotal, shippingCost: shipping.cost, carrier: shipping.carrier, total: subtotal + shipping.cost, taxIncluded, cod };
 }
 
 export type OrderQuote = Awaited<ReturnType<typeof quoteOrder>>;
@@ -99,6 +112,7 @@ export async function placeOrder(input: {
   guestEmail: string | null;
   shippingAddressId: string | null;
   cartId: string | null;
+  billing?: BillingInfo | null;
 }) {
   const { lines, quote, paymentOption } = input;
   const cod = paymentOption === "CASH_ON_DELIVERY";
@@ -130,6 +144,9 @@ export async function placeOrder(input: {
         data: {
           userId: input.userId,
           guestEmail: input.guestEmail,
+          billingIdType: input.billing?.idType ?? null,
+          billingIdNumber: input.billing?.idNumber ?? null,
+          billingName: input.billing?.name ?? null,
           shippingAddressId: input.shippingAddressId,
           ...addressSnapshot(input.address),
           totalAmount: quote.total + codFee,
@@ -147,6 +164,7 @@ export async function placeOrder(input: {
               productId: line.product.id,
               quantity: line.quantity,
               priceAtPurchase: getEffectivePrice(line.product),
+              taxRate: line.product.taxRate,
               discountLogId: discountLogByProduct.get(line.product.id),
             })),
           },

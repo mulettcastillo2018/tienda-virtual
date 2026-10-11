@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { prisma } from "../lib/prisma";
+import { PRIVACY_POLICY_VERSION, recordConsent } from "../lib/privacy";
 
 export class OAuthLoginError extends Error {}
 
@@ -21,9 +22,16 @@ export async function findOrCreateOAuthUser(provider: "google" | "facebook", pro
     throw new OAuthLoginError("Ya tienes una cuenta con ese correo. Ingresa con tu correo y contraseña.");
   }
 
-  const user = await prisma.user.create({ data: { email: normalized, provider, providerId } });
-  await prisma.cart.create({ data: { userId: user.id } });
-  return user;
+  // Al lado de los botones de Google y Facebook se avisa que continuar es
+  // aceptar la política (autorización por conducta inequívoca, Decreto 1377 de 2013).
+  return prisma.$transaction(async (tx) => {
+    const user = await tx.user.create({
+      data: { email: normalized, provider, providerId, privacyAcceptedAt: new Date(), privacyVersion: PRIVACY_POLICY_VERSION },
+    });
+    await tx.cart.create({ data: { userId: user.id } });
+    await recordConsent(tx, { userId: user.id, email: normalized, purpose: "DATA_PROCESSING", granted: true, channel: "OAUTH" });
+    return user;
+  });
 }
 
 // Código de un solo uso para entregarle la sesión al navegador sin poner el

@@ -10,7 +10,11 @@ import { guestOrderUrl, isValidOrderToken, orderAccessToken } from "../lib/order
 import { pageArgs, pageQuery } from "../lib/pagination";
 import { withPublicImages } from "../services/storage";
 import { cancelPendingOrder, lockOrder, releaseStock, transitionOrder } from "../services/orderLifecycle";
-import { CheckoutError, MAX_PER_PRODUCT, placeOrder, quoteOrder, resolveLines, type CheckoutLine } from "../services/checkout.service";
+import { CheckoutError, MAX_PER_PRODUCT, placeOrder, quoteOrder, resolveLines, type BillingInfo, type CheckoutLine } from "../services/checkout.service";
+import { parseNit } from "../lib/tax";
+import { recordConsent } from "../lib/privacy";
+import { scheduleFiscalProcessing } from "../services/fiscal/fiscal.service";
+import { returnOptionsFor } from "../services/returns.service";
 
 export const ordersRouter = Router();
 
@@ -25,6 +29,31 @@ const addressSchema = z.object({
   postalCode: z.string().trim().min(1).max(12),
   phone: z.string().trim().min(7).max(20),
 });
+
+// Factura a nombre de alguien (opcional). Con NIT, el dígito de verificación
+// tiene que ser correcto; se guarda el número sin él.
+const billingSchema = z
+  .object({
+    idType: z.enum(["13", "31", "22", "41"]),
+    idNumber: z.string().trim().min(3).max(20),
+    name: z.string().trim().min(2).max(150),
+  })
+  .transform((billing, ctx): BillingInfo => {
+    if (billing.idType === "31") {
+      const nit = parseNit(billing.idNumber);
+      if (!nit) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["idNumber"], message: "NIT inválido: escríbelo con el dígito de verificación." });
+        return z.NEVER;
+      }
+      return { ...billing, idNumber: nit.number };
+    }
+    if (!/^[0-9A-Za-z]+$/.test(billing.idNumber)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["idNumber"], message: "El documento solo lleva números y letras." });
+      return z.NEVER;
+    }
+    return billing;
+  })
+  .nullish();
 
 const linesSchema = z
   .array(z.object({ productId: z.string().min(1), quantity: z.number().int().min(1).max(MAX_PER_PRODUCT) }))
@@ -90,6 +119,7 @@ ordersRouter.post(
 const checkoutSchema = z.object({
   shippingAddressId: z.string().min(1),
   paymentOption: paymentOptionSchema,
+  billing: billingSchema,
 });
 
 ordersRouter.post(
@@ -102,7 +132,7 @@ ordersRouter.post(
       return;
     }
     const userId = req.user!.userId;
-    const { shippingAddressId, paymentOption } = parsed.data;
+    const { shippingAddressId, paymentOption, billing } = parsed.data;
     const address = await prisma.shippingAddress.findFirst({ where: { id: shippingAddressId, userId } });
     if (!address) {
       res.status(404).json({ error: "Dirección de envío no encontrada" });
@@ -112,7 +142,7 @@ ordersRouter.post(
     try {
       const resolved = await resolveLines(lines);
       const quote = await quoteOrder(resolved, address);
-      const order = await placeOrder({ lines: resolved, quote, paymentOption, address, userId, guestEmail: null, shippingAddressId, cartId });
+      const order = await placeOrder({ lines: resolved, quote, paymentOption, address, userId, guestEmail: null, shippingAddressId, cartId, billing });
       if (paymentOption === "CASH_ON_DELIVERY") {
         const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
         if (user) await notifyOrderReceived(order.id, user.email, null);
@@ -132,6 +162,9 @@ const guestCheckoutSchema = z.object({
   address: addressSchema,
   items: linesSchema,
   paymentOption: paymentOptionSchema,
+  billing: billingSchema,
+  // Autorización de tratamiento de datos para gestionar el pedido (Ley 1581).
+  acceptPrivacy: z.boolean().optional(),
 });
 
 const guestCheckoutsByIp = createRateLimiter(Number(process.env.GUEST_CHECKOUTS_PER_HOUR) || 20, 60 * 60_000);
@@ -145,11 +178,16 @@ ordersRouter.post(
       res.status(400).json({ error: parsed.error.flatten() });
       return;
     }
-    const { email, address, items, paymentOption } = parsed.data;
+    const { email, address, items, paymentOption, billing, acceptPrivacy } = parsed.data;
+    if (acceptPrivacy !== true) {
+      res.status(400).json({ error: "Para comprar debes autorizar el tratamiento de tus datos personales." });
+      return;
+    }
     try {
       const resolved = await resolveLines(items);
       const quote = await quoteOrder(resolved, address);
-      const order = await placeOrder({ lines: resolved, quote, paymentOption, address, userId: null, guestEmail: email, shippingAddressId: null, cartId: null });
+      const order = await placeOrder({ lines: resolved, quote, paymentOption, address, userId: null, guestEmail: email, shippingAddressId: null, cartId: null, billing });
+      await recordConsent(prisma, { orderId: order.id, email, purpose: "DATA_PROCESSING", granted: true, channel: "CHECKOUT_INVITADO", ipAddress: clientIp(req) });
       const accessToken = orderAccessToken(order.id);
       await notifyOrderReceived(order.id, email, guestOrderUrl(order.id));
       res.status(201).json({ ...order, accessToken });
@@ -210,6 +248,14 @@ const customerOrderInclude = {
   items: { include: { product: true, discountLog: { select: { discountPercentage: true } } } },
   payments: { orderBy: { createdAt: "desc" as const }, select: { status: true, paymentMethod: true, createdAt: true } },
   statusLogs: { orderBy: { changedAt: "asc" as const }, select: { fromStatus: true, toStatus: true, changedAt: true } },
+  returnRequests: {
+    orderBy: { createdAt: "desc" as const },
+    select: { id: true, type: true, status: true, cause: true, storeNote: true, deadlineAt: true, createdAt: true, refundReference: true },
+  },
+  fiscalDocuments: {
+    orderBy: { createdAt: "asc" as const },
+    select: { type: true, prefix: true, number: true, status: true, uniqueCode: true, createdAt: true },
+  },
 } satisfies Prisma.OrderInclude;
 
 function withProductImages<T extends { items: { product: { images: string[] } }[] }>(order: T): T {
@@ -219,11 +265,19 @@ function withProductImages<T extends { items: { product: { images: string[] } }[
 // El cliente ve cuándo cambió de estado su pedido, no las notas internas
 // (motivos, revisiones de pago, quién lo cambió).
 function toCustomerOrder(order: Prisma.OrderGetPayload<{ include: typeof customerOrderInclude }>) {
-  const { statusLogs, ...rest } = withProductImages(order);
+  const { statusLogs, fiscalDocuments, ...rest } = withProductImages(order);
+  const options = returnOptionsFor(order);
   return {
     ...rest,
     shippingAddress: shippingAddressOf(order),
     timeline: statusLogs.filter((log) => log.fromStatus !== log.toStatus).map((log) => ({ status: log.toStatus, at: log.changedAt })),
+    // Qué puede pedir (retracto / reversión) y hasta cuándo.
+    returnOptions: {
+      RETRACTO: { available: options.RETRACTO.available, deadline: options.RETRACTO.deadline },
+      REVERSION: { available: options.REVERSION.available, deadline: options.REVERSION.deadline },
+    },
+    // Solo los documentos aceptados por la DIAN (los demás van en trámite).
+    invoices: fiscalDocuments.filter((doc) => doc.status === "ACCEPTED").map((doc) => ({ ...doc, fullNumber: `${doc.prefix}${doc.number}` })),
   };
 }
 
@@ -314,7 +368,7 @@ const dispatchSchema = z.object({
   trackingNumber: z.string().trim().min(1),
 });
 
-const STATUSES = ["PENDING", "PAID", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"] as const satisfies readonly OrderStatus[];
+const STATUSES = ["PENDING", "PAID", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED", "REFUNDED"] as const satisfies readonly OrderStatus[];
 
 const adminListSchema = z.object({
   ...pageQuery,
@@ -497,6 +551,8 @@ for (const [path, step] of Object.entries(ADMIN_STEPS)) {
         res.status(409).json({ error: step.error });
         return;
       }
+      // Contra entrega entregado = venta cobrada: va a facturación electrónica.
+      if (step.to === "DELIVERED") scheduleFiscalProcessing();
       res.json({ ok: true, status: step.to });
     })
   );

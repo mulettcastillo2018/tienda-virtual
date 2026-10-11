@@ -99,6 +99,11 @@ model PaymentMethod {
 
 model ContactInfo {
   id        String   @id @default("main")
+  // Identificación del comerciante que se muestra en la tienda (Ley 1480 de
+  // 2011, art. 50) y que va en las facturas electrónicas.
+  legalName String   @default("")
+  // NIT con dígito de verificación, p. ej. "900123456-7".
+  nit       String   @default("")
   phone     String
   whatsapp  String
   email     String
@@ -113,6 +118,8 @@ enum OrderStatus {
   SHIPPED
   DELIVERED
   CANCELLED
+  // Devuelto y reembolsado (retracto o reversión del pago).
+  REFUNDED
 }
 
 enum PaymentProvider {
@@ -152,6 +159,15 @@ model User {
   // desactivar la cuenta se incrementa, y todos los tokens anteriores dejan
   // de servir de inmediato.
   tokenVersion        Int                  @default(0)
+  // Autorización de tratamiento de datos (Ley 1581 de 2012): cuándo y qué
+  // versión de la política aceptó; el detalle queda en ConsentRecord.
+  privacyAcceptedAt   DateTime?
+  privacyVersion      String?
+  // Acepta recibir ofertas por correo o WhatsApp (aparte de la autorización).
+  marketingOptIn      Boolean              @default(false)
+  // Cuenta suprimida a pedido del titular: los datos personales se borraron
+  // y solo queda lo que la ley obliga a conservar (pedidos y facturas).
+  deletedAt           DateTime?
   createdAt           DateTime             @default(now())
   oauthLoginCodes     OAuthLoginCode[]
   uploadedFiles       UploadedFile[]
@@ -165,6 +181,7 @@ model User {
   discountLogsCreated ProductDiscountLog[]
   storeReviews        StoreReview[]
   orderStatusChanges  OrderStatusLog[]
+  consents            ConsentRecord[]
 
   @@unique([provider, providerId])
 }
@@ -236,6 +253,8 @@ model Product {
   heightCm           Float
   depthCm            Float
   sku                String               @unique
+  // Tarifa de IVA incluida en el precio: 19, 5 o 0 (excluido).
+  taxRate            Int                  @default(19)
   isActive           Boolean              @default(true)
   createdAt          DateTime             @default(now())
   cartItems          CartItem[]
@@ -317,6 +336,11 @@ model Order {
   userId             String?
   user               User?            @relation(fields: [userId], references: [id], onDelete: Restrict)
   guestEmail         String?
+  // Factura a nombre de alguien (null = consumidor final). Tipo de documento
+  // de la DIAN: 13 cédula, 31 NIT, 22 cédula de extranjería, 41 pasaporte.
+  billingIdType      String?
+  billingIdNumber    String?
+  billingName        String?
   totalAmount        Int
   shippingAddressId  String?
   shippingAddress    ShippingAddress? @relation(fields: [shippingAddressId], references: [id], onDelete: Restrict)
@@ -350,6 +374,9 @@ model Order {
   statusLogs         OrderStatusLog[]
   pqrsList           Pqrs[]
   storeReview        StoreReview?
+  returnRequests     ReturnRequest[]
+  fiscalDocuments    FiscalDocument[]
+  consents           ConsentRecord[]
 
   @@index([userId])
   @@index([paymentOption, status])
@@ -400,6 +427,8 @@ model OrderItem {
   product         Product             @relation(fields: [productId], references: [id])
   quantity        Int
   priceAtPurchase Int
+  // Tarifa de IVA con la que se vendió (no cambia si después se edita el producto).
+  taxRate         Int                 @default(19)
   discountLogId   String?
   discountLog     ProductDiscountLog? @relation(fields: [discountLogId], references: [id])
 
@@ -425,5 +454,155 @@ model Payment {
   createdAt             DateTime        @default(now())
   updatedAt             DateTime        @default(now()) @updatedAt
 
+  @@index([orderId])
+}
+
+// --- Ley 1581 de 2012: autorizaciones de tratamiento de datos ---
+
+enum ConsentPurpose {
+  // Tratar los datos para la relación con el cliente (pedidos, envíos, PQRS).
+  DATA_PROCESSING
+  // Enviar ofertas y novedades.
+  MARKETING
+}
+
+// Prueba de cada autorización (o revocatoria): quién, para qué, qué versión
+// de la política, cuándo y por qué canal. No se borra al suprimir la cuenta.
+model ConsentRecord {
+  id            String         @id @default(cuid())
+  userId        String?
+  user          User?          @relation(fields: [userId], references: [id])
+  orderId       String?
+  order         Order?         @relation(fields: [orderId], references: [id])
+  email         String
+  purpose       ConsentPurpose
+  granted       Boolean
+  policyVersion String
+  // REGISTRO, OAUTH, CHECKOUT_INVITADO o CUENTA.
+  channel       String
+  ipAddress     String?
+  createdAt     DateTime       @default(now())
+
+  @@index([userId])
+  @@index([orderId])
+}
+
+// --- Ley 1480 de 2011: retracto (art. 47) y reversión del pago (art. 51) ---
+
+enum ReturnType {
+  RETRACTO
+  REVERSION
+}
+
+enum ReturnStatus {
+  // El cliente la pidió; la tienda la revisa.
+  REQUESTED
+  // Aceptada: el cliente devuelve el producto (o no hay producto que devolver).
+  APPROVED
+  // La tienda recibió el producto de vuelta.
+  RECEIVED
+  // Se devolvió el dinero: fin del trámite.
+  REFUNDED
+  // No procede (fuera de plazo, producto usado, causal no aplica...).
+  REJECTED
+}
+
+model ReturnRequest {
+  id              String       @id @default(cuid())
+  orderId         String
+  order           Order        @relation(fields: [orderId], references: [id])
+  type            ReturnType
+  status          ReturnStatus @default(REQUESTED)
+  // Reversión: FRAUDE, NO_SOLICITADA, NO_RECIBIDO o DEFECTUOSO (art. 51).
+  cause           String?
+  customerNote    String?
+  // Lo que respondió la tienda (motivo del rechazo, instrucciones de envío).
+  storeNote       String?
+  refundReference String?
+  // Hasta cuándo se podía pedir (5 días hábiles).
+  deadlineAt      DateTime
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  resolvedAt      DateTime?
+
+  @@index([orderId])
+  @@index([status, createdAt])
+}
+
+// --- Factura electrónica (DIAN) con Alanube ---
+
+enum FiscalDocumentType {
+  INVOICE
+  // Anula (total) una factura: devoluciones y reembolsos.
+  CREDIT_NOTE
+}
+
+enum FiscalDocumentStatus {
+  // Todavía no se envió (sin conexión o sin configurar): se reintenta solo.
+  PENDING
+  // Alanube lo recibió; falta la respuesta de la DIAN.
+  SENT
+  ACCEPTED
+  // La DIAN (o Alanube) lo rechazó: hay que corregir y reenviar.
+  REJECTED
+}
+
+model FiscalSettings {
+  id               String    @id @default("main")
+  enabled          Boolean   @default(false)
+  // Desde cuándo: los pedidos pagados antes no se facturan.
+  enabledAt        DateTime?
+  alanubeUrl       String    @default("https://sandbox-api.alegra.com/e-provider/col/v1")
+  alanubeToken     String?
+  alanubeCompanyId String?
+  // Resolución de numeración de la DIAN.
+  resolutionNumber String?
+  prefix           String?
+  rangeFrom        Int?
+  rangeTo          Int?
+  // Fechas como AAAA-MM-DD.
+  startDate        String?
+  endDate          String?
+  technicalKey     String?
+  nextNumber       Int?
+  creditNotePrefix String    @default("NC")
+  creditNoteNext   Int       @default(1)
+  // IVA del envío y del recargo contra entrega (0 = excluido).
+  shippingTaxRate  Int       @default(0)
+  updatedAt        DateTime  @updatedAt
+}
+
+model FiscalDocument {
+  id             String               @id @default(cuid())
+  orderId        String
+  order          Order                @relation(fields: [orderId], references: [id])
+  type           FiscalDocumentType
+  prefix         String
+  number         Int
+  status         FiscalDocumentStatus @default(PENDING)
+  // Lo que se envía; si hay que reintentar por conexión, se reenvía igual.
+  content        Json
+  // Evita que un reintento cree el documento dos veces en la DIAN.
+  idempotencyKey String               @unique
+  alanubeId      String?
+  // CUFE (factura) o CUDE (nota crédito).
+  uniqueCode     String?
+  qr             String?
+  message        String?
+  errors         String[]
+  attempts       Int                  @default(0)
+  nextAttemptAt  DateTime             @default(now())
+  customerName   String
+  customerId     String
+  total          Int
+  // Factura que esta nota crédito anula.
+  cancelsId      String?              @unique
+  cancels        FiscalDocument?      @relation("Cancellation", fields: [cancelsId], references: [id])
+  cancelledBy    FiscalDocument?      @relation("Cancellation")
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@unique([type, prefix, number])
+  @@index([status, nextAttemptAt])
   @@index([orderId])
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, XCircle } from "lucide-react";
+import { Check, RotateCcw, XCircle } from "lucide-react";
 import { useT, useLocale } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 import type { Order, OrderStatus } from "@/lib/types";
@@ -19,6 +19,16 @@ export function OrderProgress({ order }: { order: Pick<Order, "status" | "timeli
   const t = useT();
   const locale = useLocale();
   const timeline = order.timeline ?? [];
+
+  if (order.status === "REFUNDED") {
+    const refunded = timeline.findLast((entry) => entry.status === "REFUNDED");
+    return (
+      <p className="flex items-center gap-2 text-sm text-muted-foreground">
+        <RotateCcw size={16} aria-hidden className="shrink-0" />
+        {refunded ? t("account.refundedOn", { date: formatDate(refunded.at, locale) }) : t("orderStatus.REFUNDED")}
+      </p>
+    );
+  }
 
   if (order.status === "CANCELLED") {
     const cancelled = timeline.findLast((entry) => entry.status === "CANCELLED");

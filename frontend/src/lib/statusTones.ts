@@ -9,6 +9,7 @@ export const ORDER_STATUS_TONE: Record<OrderStatus, BadgeTone> = {
   SHIPPED: "dark",
   DELIVERED: "success",
   CANCELLED: "neutral",
+  REFUNDED: "neutral",
 };
 
 /** Clave del texto del estado: un pedido contra entrega pendiente no espera

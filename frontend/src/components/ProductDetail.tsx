@@ -210,6 +210,9 @@ export function ProductDetail({ id, initialProduct }: { id: string; initialProdu
               <p className="mt-4 text-3xl font-bold tracking-tight tabular-nums">{formatCOP(product.price)}</p>
             )}
 
+            <p className="mt-1 text-xs text-muted-foreground">
+              {product.taxRate > 0 ? t("product.taxIncluded", { rate: product.taxRate }) : t("product.taxExcluded")}
+            </p>
             <div className="mt-3">{stockLine}</div>
 
             {/* En celular el botón vive en la barra fija de abajo */}

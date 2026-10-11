@@ -13,6 +13,9 @@ import { probarListados } from "./listados.e2e";
 import { probarVentas } from "./ventas.e2e";
 import { probarContraEntrega } from "./contraentrega.e2e";
 import { probarInvitado } from "./invitado.e2e";
+import { probarPrivacidad } from "./privacidad.e2e";
+import { probarDevoluciones } from "./devoluciones.e2e";
+import { probarFacturacion } from "./facturacion.e2e";
 
 const PRUEBAS: [string, () => Promise<void>][] = [
   ["Pagos con Wompi", probarPagos],
@@ -22,6 +25,9 @@ const PRUEBAS: [string, () => Promise<void>][] = [
   ["Tablero de ventas", probarVentas],
   ["Pago contra entrega", probarContraEntrega],
   ["Compra como invitado", probarInvitado],
+  ["Datos personales y comerciante", probarPrivacidad],
+  ["Retracto y reversión", probarDevoluciones],
+  ["Factura electrónica", probarFacturacion],
   ["Seguridad de las cuentas", probarCuentas],
   ["Archivos subidos", probarArchivos],
   ["Almacenamiento en la nube (S3 simulado)", probarAlmacenamiento],

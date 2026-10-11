@@ -17,7 +17,7 @@ export async function probarCuentas() {
 
     console.log("[cuentas] Registro");
     const correo = `Cuentas_E2E_${Date.now()}@Tienda.TEST`;
-    const registro = await req("POST", "/auth/register", { email: correo, phone: "3001234567", password: CLAVE_PRUEBA });
+    const registro = await req("POST", "/auth/register", { email: correo, phone: "3001234567", password: CLAVE_PRUEBA, acceptPrivacy: true });
     if (registro.data?.user?.id) creados.usuarios.push(registro.data.user.id);
     verificar(registro.status === 201 && registro.data.user.email === correo.toLowerCase(), "el correo se guarda en minúsculas");
     verificar((await login(correo.toUpperCase())).status === 200, "y se puede ingresar escribiéndolo con mayúsculas");

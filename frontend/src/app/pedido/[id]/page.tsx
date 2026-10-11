@@ -6,6 +6,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { Banknote, Loader2, MapPin, SearchX, Truck } from "lucide-react";
 import { apiFetch, ApiError } from "@/lib/api";
 import { OrderProgress } from "@/components/OrderProgress";
+import { OrderAfterSales, type ReturnBody } from "@/components/OrderAfterSales";
 import { useLocale, useT } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 import { ORDER_STATUS_TONE, orderStatusKey } from "@/lib/statusTones";
@@ -48,6 +49,11 @@ function GuestOrder() {
   useEffect(() => {
     load();
   }, [load]);
+
+  async function requestReturn(body: ReturnBody) {
+    await apiFetch(`/returns/guest/${id}`, { method: "POST", headers, body: JSON.stringify(body) });
+    await load();
+  }
 
   async function cancel() {
     setCancelling(true);
@@ -155,6 +161,8 @@ function GuestOrder() {
           {t("account.shippedBy", { carrier: order.carrier ?? "", tracking: order.trackingNumber })}
         </p>
       ) : null}
+
+      <OrderAfterSales order={order} submit={requestReturn} />
 
       {error ? (
         <p role="alert" className="mt-4 rounded-2xl bg-peligro/10 px-4 py-3 text-sm font-medium text-peligro">

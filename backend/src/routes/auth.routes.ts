@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { tokenFor } from "../lib/jwt";
+import { PRIVACY_POLICY_VERSION, recordConsent } from "../lib/privacy";
 import { catchAsync } from "../lib/catchAsync";
 import { clientIp, createRateLimiter, limitRequests } from "../lib/rateLimit";
 import { forgetUserState, revokeSessions } from "../lib/userState";
@@ -35,6 +36,9 @@ const registerSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
   phone: z.string().trim().min(7, "Ingresa un teléfono de contacto válido"),
   password: z.string().min(8),
+  // Autorización previa, expresa e informada (Ley 1581 de 2012).
+  acceptPrivacy: z.boolean().optional(),
+  marketing: z.boolean().default(false),
 });
 
 authRouter.post(
@@ -47,7 +51,11 @@ authRouter.post(
       return;
     }
 
-    const { email, phone, password } = parsed.data;
+    const { email, phone, password, acceptPrivacy, marketing } = parsed.data;
+    if (acceptPrivacy !== true) {
+      res.status(400).json({ error: "Para crear la cuenta debes autorizar el tratamiento de tus datos personales." });
+      return;
+    }
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
@@ -56,10 +64,15 @@ authRouter.post(
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const user = await prisma.user.create({
-      data: { email, phone, passwordHash },
+    const user = await prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({
+        data: { email, phone, passwordHash, privacyAcceptedAt: new Date(), privacyVersion: PRIVACY_POLICY_VERSION, marketingOptIn: marketing },
+      });
+      await tx.cart.create({ data: { userId: created.id } });
+      await recordConsent(tx, { userId: created.id, email, purpose: "DATA_PROCESSING", granted: true, channel: "REGISTRO", ipAddress: clientIp(req) });
+      if (marketing) await recordConsent(tx, { userId: created.id, email, purpose: "MARKETING", granted: true, channel: "REGISTRO", ipAddress: clientIp(req) });
+      return created;
     });
-    await prisma.cart.create({ data: { userId: user.id } });
 
     res.status(201).json({ token: tokenFor(user), user: sessionUser(user) });
   })

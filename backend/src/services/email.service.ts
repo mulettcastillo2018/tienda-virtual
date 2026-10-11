@@ -222,3 +222,38 @@ export async function sendPqrsUpdateEmail(
     `,
   });
 }
+
+const RETURN_TYPE_LABEL: Record<string, string> = { RETRACTO: "retracto", REVERSION: "reversión del pago" };
+const RETURN_STATUS_TEXT: Record<string, string> = {
+  REQUESTED: "Recibimos tu solicitud y la revisaremos pronto.",
+  APPROVED: "Aprobamos tu solicitud.",
+  RECEIVED: "Recibimos el producto devuelto.",
+  REFUNDED: "Te devolvimos el dinero.",
+  REJECTED: "Tu solicitud no procede.",
+};
+
+// Cada cambio de una solicitud de retracto o reversión.
+export async function sendReturnUpdateEmail(
+  toEmail: string,
+  data: { orderId: string; type: string; status: string; storeNote: string | null; orderUrl: string | null }
+) {
+  if (isUndeliverable(toEmail)) return;
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.warn("RESEND_API_KEY no configurado — se omite el aviso de la solicitud.");
+    return;
+  }
+  const resend = new Resend(apiKey);
+  const from = process.env.STORE_FROM_EMAIL ?? "Tienda Virtual <onboarding@resend.dev>";
+  const label = RETURN_TYPE_LABEL[data.type] ?? "solicitud";
+  const html = `
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2>Tu solicitud de ${escapeHtml(label)}</h2>
+      <p>Pedido <strong>#${escapeHtml(data.orderId)}</strong>.</p>
+      <p>${escapeHtml(RETURN_STATUS_TEXT[data.status] ?? data.status)}</p>
+      ${data.storeNote ? `<p>${escapeHtml(data.storeNote)}</p>` : ""}
+      ${data.orderUrl ? `<p><a href="${escapeHtml(data.orderUrl)}">Ver mi pedido</a></p>` : ""}
+    </div>
+  `;
+  await resend.emails.send({ from, to: toEmail, subject: `Tu solicitud de ${label} — pedido #${data.orderId}`, html });
+}

@@ -24,6 +24,8 @@ export default function AdminContactPage() {
     if (!token) return;
     const field = (name: string) => (event.currentTarget.elements.namedItem(name) as HTMLInputElement).value;
     const data = {
+      legalName: field("legalName"),
+      nit: field("nit"),
       phone: field("phone"),
       whatsapp: field("whatsapp"),
       email: field("email"),
@@ -54,6 +56,15 @@ export default function AdminContactPage() {
       <p className="text-sm text-muted-foreground">{t("adminContact.hint")}</p>
       {error ? <p className="text-sm text-peligro font-medium">{error}</p> : null}
       <form onSubmit={handleSubmit} className="space-y-3">
+        <div>
+          <label className="mb-1 block text-sm font-medium">{t("adminContact.legalName")}</label>
+          <input name="legalName" defaultValue={info.legalName} maxLength={200} className="w-full rounded-xl border border-border px-3.5 h-11 text-sm bg-surface" />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">{t("adminContact.nit")}</label>
+          <input name="nit" defaultValue={info.nit} placeholder="900123456-7" className="w-full rounded-xl border border-border px-3.5 h-11 text-sm bg-surface" />
+          <p className="mt-1 text-xs text-muted-foreground">{t("adminContact.nitHint")}</p>
+        </div>
         <div>
           <label className="mb-1 block text-sm font-medium">{t("adminContact.phone")}</label>
           <input

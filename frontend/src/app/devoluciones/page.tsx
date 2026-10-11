@@ -33,12 +33,23 @@ export default function DevolucionesPage() {
           <section>
             <h2 className="text-lg font-bold tracking-tight text-foreground">How to request a return</h2>
             <p className="mt-2">
-              Write to us with your order number (found in{" "}
+              Open your order (in{" "}
               <a href="/account" className="font-semibold text-foreground underline underline-offset-4 transition-colors hover:text-accent">
                 your account
               </a>
-              ) and the reason for the return. We'll let you know the next steps, including the return address if
-              applicable.
+              , or from the link in your email if you bought as a guest) and use <strong>Withdraw from the
+              purchase</strong>. The button is available during the 5 business days after delivery. We'll tell you
+              how to send the product back, and you can follow every step from the same order.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-bold tracking-tight text-foreground">Payment reversal</h2>
+            <p className="mt-2">
+              If you paid online (card, PSE, Nequi) and the purchase was fraudulent, you didn't request it, you didn't
+              receive the product or it arrived defective, you can ask for the payment to be reversed (article 51 of
+              Law 1480) within 5 business days, from your order with <strong>Request payment reversal</strong>. You
+              must also notify the issuer of your payment method (your bank).
             </p>
           </section>
 
@@ -102,12 +113,23 @@ export default function DevolucionesPage() {
         <section>
           <h2 className="text-lg font-bold tracking-tight text-foreground">Cómo solicitar una devolución</h2>
           <p className="mt-2">
-            Escríbenos indicando el número de tu pedido (lo encuentras en{" "}
+            Abre tu pedido (en{" "}
             <a href="/account" className="font-semibold text-foreground underline underline-offset-4 transition-colors hover:text-accent">
               tu cuenta
             </a>
-            ) y el motivo de la devolución. Te indicaremos los pasos siguientes, incluyendo la dirección de
-            devolución si aplica.
+            , o desde el enlace del correo si compraste como invitado) y usa <strong>Retractarme de la compra</strong>.
+            El botón está disponible durante los 5 días hábiles siguientes a la entrega. Te diremos cómo enviarnos
+            el producto y podrás seguir cada paso desde el mismo pedido.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-lg font-bold tracking-tight text-foreground">Reversión del pago</h2>
+          <p className="mt-2">
+            Si pagaste en línea (tarjeta, PSE, Nequi) y la compra fue un fraude, no la solicitaste, no recibiste el
+            producto o llegó defectuoso, puedes pedir que se reverse el pago (artículo 51 de la Ley 1480) dentro de
+            los 5 días hábiles siguientes, desde tu pedido con <strong>Solicitar reversión del pago</strong>. Debes
+            avisar también al emisor de tu medio de pago (tu banco).
           </p>
         </section>
 

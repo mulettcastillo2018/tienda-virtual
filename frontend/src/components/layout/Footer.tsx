@@ -5,6 +5,7 @@ import { CarrierBadges } from "@/components/CarrierBadges";
 import { PaymentBadges } from "@/components/PaymentBadges";
 import { Container } from "@/components/ui/Container";
 import { ContactSection } from "./ContactSection";
+import { MerchantInfo } from "./MerchantInfo";
 import { useT } from "@/lib/i18n";
 
 const ENLACE = "transition-colors duration-200 hover:text-foreground";
@@ -23,7 +24,10 @@ export function Footer() {
         </div>
 
         <div className="mt-14 flex flex-col gap-5 border-t border-border pt-8 sm:flex-row sm:items-center sm:justify-between">
-          <p className="sm:order-1">{t("footer.rights", { year: new Date().getFullYear() })}</p>
+          <div className="grid gap-1 sm:order-1">
+            <MerchantInfo />
+            <p>{t("footer.rights", { year: new Date().getFullYear() })}</p>
+          </div>
           <nav className="flex flex-wrap items-center gap-x-6 gap-y-2 sm:order-2">
             <Link href="/terminos" className={ENLACE}>
               {t("footer.terms")}
@@ -33,6 +37,9 @@ export function Footer() {
             </Link>
             <Link href="/devoluciones" className={ENLACE}>
               {t("footer.returns")}
+            </Link>
+            <Link href="/privacidad" className={ENLACE}>
+              {t("footer.privacy")}
             </Link>
           </nav>
         </div>

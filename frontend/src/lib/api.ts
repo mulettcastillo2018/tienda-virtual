@@ -1,6 +1,6 @@
 import { useAuthStore } from "@/store/auth.store";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 // Un 401 a una petición con sesión significa que el servidor la cerró (cuenta
 // desactivada, permisos o contraseña cambiados, token vencido): se cierra aquí

@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import type { OrderStatus, SalesSummary, SalesTotals } from "@/lib/types";
 
 const PERIODS = [7, 30, 90] as const;
-const STATUSES: OrderStatus[] = ["PENDING", "PAID", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"];
+const STATUSES: OrderStatus[] = ["PENDING", "PAID", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED", "REFUNDED"];
 
 function formatCOP(amount: number) {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(amount);
