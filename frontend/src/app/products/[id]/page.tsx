@@ -5,9 +5,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ChevronRight, RotateCcw, ShieldCheck, Truck } from "lucide-react";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, ApiError } from "@/lib/api";
 import { useAuthStore } from "@/store/auth.store";
 import { useCartStore } from "@/store/cart.store";
+import { useToastStore } from "@/store/toast.store";
 import { getEffectivePrice, isDiscountActive } from "@/lib/pricing";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
@@ -17,6 +18,7 @@ import { Button, buttonStyles } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { Product } from "@/lib/types";
+import NotFound from "@/app/not-found";
 
 function formatCOP(amount: number) {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" }).format(amount);
@@ -45,13 +47,19 @@ export default function ProductDetailPage() {
   const [activeImage, setActiveImage] = useState(0);
   const token = useAuthStore((state) => state.token);
   const addItem = useCartStore((state) => state.addItem);
+  const showToast = useToastStore((state) => state.show);
+  const [missing, setMissing] = useState(false);
   const t = useT();
 
   useEffect(() => {
-    apiFetch<Product>(`/products/${id}`).then((data) => {
-      setProduct(data);
-      setActiveImage(0);
-    });
+    apiFetch<Product>(`/products/${id}`)
+      .then((data) => {
+        setProduct(data);
+        setActiveImage(0);
+      })
+      .catch((err) => {
+        if (err instanceof ApiError && err.status === 404) setMissing(true);
+      });
   }, [id]);
 
   async function handleAddToCart() {
@@ -60,9 +68,16 @@ export default function ProductDetailPage() {
       return;
     }
     setStatus("adding");
-    await addItem(product!.id, 1);
-    setStatus("added");
+    try {
+      await addItem(product!.id, 1);
+      setStatus("added");
+    } catch (err) {
+      setStatus("idle");
+      showToast(err instanceof ApiError ? err.message : t("home.addToCartError"));
+    }
   }
+
+  if (missing) return <NotFound />;
 
   if (!product) {
     return (

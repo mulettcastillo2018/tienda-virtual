@@ -1,11 +1,15 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { apiFetch, ApiError } from "@/lib/api";
+import { usePagedList } from "@/lib/usePagedList";
 import { useAuthStore } from "@/store/auth.store";
 import { useToastStore } from "@/store/toast.store";
 import { useT, useLocale } from "@/lib/i18n";
 import type { UserRole } from "@/lib/types";
+import { FilterTabs } from "@/components/ui/FilterTabs";
+import { Pagination } from "@/components/ui/Pagination";
+import { SearchForm } from "@/components/ui/SearchForm";
 
 interface AdminUser {
   id: string;
@@ -18,6 +22,7 @@ interface AdminUser {
 }
 
 const ROLES: UserRole[] = ["CUSTOMER", "JURIDICO", "ADMIN"];
+const PAGE_SIZE = 20;
 
 function formatDate(iso: string, locale: "es" | "en") {
   return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "es-CO", { dateStyle: "long" }).format(new Date(iso));
@@ -26,7 +31,9 @@ function formatDate(iso: string, locale: "es" | "en") {
 export default function AdminUsersPage() {
   const token = useAuthStore((state) => state.token);
   const currentUser = useAuthStore((state) => state.user);
-  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [roleFilter, setRoleFilter] = useState<UserRole | "ALL">("ALL");
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [resettingId, setResettingId] = useState<string | null>(null);
@@ -35,16 +42,12 @@ export default function AdminUsersPage() {
   const t = useT();
   const locale = useLocale();
 
-  async function loadUsers() {
-    if (!token) return;
-    const data = await apiFetch<AdminUser[]>("/users", { token });
-    setUsers(data);
-  }
-
-  useEffect(() => {
-    loadUsers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  const list = usePagedList<{ items: AdminUser[]; total: number }>(
+    "/users",
+    { page, pageSize: PAGE_SIZE, role: roleFilter === "ALL" ? undefined : roleFilter, q: query },
+    t("adminUsers.loadError")
+  );
+  const users = list.data?.items ?? [];
 
   async function handleChangeRole(user: AdminUser, role: UserRole) {
     if (!token || role === user.role) return;
@@ -54,7 +57,7 @@ export default function AdminUsersPage() {
     setUpdatingId(user.id);
     try {
       await apiFetch(`/users/${user.id}/role`, { method: "PUT", token, body: JSON.stringify({ role }) });
-      await loadUsers();
+      list.reload();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("adminUsers.changeRoleError"));
     } finally {
@@ -78,7 +81,7 @@ export default function AdminUsersPage() {
         token,
         body: JSON.stringify({ isActive: nextActive }),
       });
-      await loadUsers();
+      list.reload();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("adminUsers.toggleActiveError"));
     } finally {
@@ -123,7 +126,27 @@ export default function AdminUsersPage() {
 
   return (
     <div className="space-y-2">
-      {error ? <p className="text-sm text-peligro font-medium">{error}</p> : null}
+      <div className="space-y-4 pb-2">
+        <FilterTabs
+          options={[{ value: "ALL" as const, label: t("adminUsers.allRoles") }, ...ROLES.map((value) => ({ value, label: t(`userRole.${value}`) }))]}
+          value={roleFilter}
+          onChange={(value) => {
+            setRoleFilter(value);
+            setPage(1);
+          }}
+        />
+        <SearchForm
+          placeholder={t("adminUsers.searchPlaceholder")}
+          onSearch={(value) => {
+            setQuery(value);
+            setPage(1);
+          }}
+        />
+      </div>
+      {error || list.error ? <p className="text-sm text-peligro font-medium">{error ?? list.error}</p> : null}
+      {list.data && users.length === 0 ? (
+        <p className="rounded-2xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">{t("adminUsers.empty")}</p>
+      ) : null}
 
       {users.map((user) => (
         <div key={user.id} className="rounded-2xl border border-border p-3 bg-surface shadow-suave">
@@ -215,6 +238,7 @@ export default function AdminUsersPage() {
           ) : null}
         </div>
       ))}
+      <Pagination page={page} pageSize={PAGE_SIZE} total={list.data?.total ?? 0} onChange={setPage} />
     </div>
   );
 }

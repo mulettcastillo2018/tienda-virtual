@@ -91,7 +91,8 @@ productsRouter.get(
       where: { id: req.params.id },
       include: { category: true },
     });
-    if (!product) {
+    // Un producto desactivado sale de la tienda también por enlace directo.
+    if (!product || !product.isActive) {
       res.status(404).json({ error: "Producto no encontrado" });
       return;
     }

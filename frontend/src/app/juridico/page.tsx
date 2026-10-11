@@ -1,22 +1,22 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { apiFetch, ApiError, uploadFile } from "@/lib/api";
+import { usePagedList } from "@/lib/usePagedList";
 import { useAuthStore } from "@/store/auth.store";
 import { useToastStore } from "@/store/toast.store";
 import { PqrsTimeline } from "@/components/PqrsTimeline";
 import { useT, useLocale } from "@/lib/i18n";
-import { cn } from "@/lib/cn";
 import { PQRS_STATUS_TONE } from "@/lib/statusTones";
 import { Badge } from "@/components/ui/Badge";
+import { FilterTabs } from "@/components/ui/FilterTabs";
+import { Pagination } from "@/components/ui/Pagination";
+import { SearchForm } from "@/components/ui/SearchForm";
 import type { Pqrs, PqrsStatus } from "@/lib/types";
 
 const PQRS_STATUSES: PqrsStatus[] = ["RECIBIDO", "EN_PROCESO", "RESUELTO", "CERRADO"];
 
-// Filtro por estado: el elegido queda en tinta.
-const FILTER = "inline-flex h-9 shrink-0 items-center rounded-full border px-4 text-sm font-semibold whitespace-nowrap transition-colors duration-200";
-const FILTER_ON = "border-foreground bg-foreground text-background";
-const FILTER_OFF = "border-border bg-surface text-muted-foreground hover:text-foreground";
+const PAGE_SIZE = 20;
 
 function formatDate(iso: string, locale: "es" | "en") {
   return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "es-CO", { dateStyle: "long", timeStyle: "short" }).format(
@@ -27,8 +27,9 @@ function formatDate(iso: string, locale: "es" | "en") {
 export default function JuridicoPqrsPage() {
   const token = useAuthStore((state) => state.token);
   const showToast = useToastStore((state) => state.show);
-  const [items, setItems] = useState<Pqrs[]>([]);
   const [statusFilter, setStatusFilter] = useState<PqrsStatus | "ALL">("ALL");
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
   const [openId, setOpenId] = useState<string | null>(null);
   const [draftStatus, setDraftStatus] = useState<PqrsStatus | null>(null);
   const [attachment, setAttachment] = useState<File | null>(null);
@@ -37,16 +38,13 @@ export default function JuridicoPqrsPage() {
   const t = useT();
   const locale = useLocale();
 
-  async function loadItems() {
-    if (!token) return;
-    const data = await apiFetch<Pqrs[]>("/pqrs", { token });
-    setItems(data);
-  }
-
-  useEffect(() => {
-    loadItems();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  const list = usePagedList<{ items: Pqrs[]; total: number; counts: Partial<Record<PqrsStatus | "ALL", number>> }>(
+    "/pqrs",
+    { page, pageSize: PAGE_SIZE, status: statusFilter === "ALL" ? undefined : statusFilter, q: query },
+    t("juridico.loadError")
+  );
+  const visibleItems = list.data?.items ?? [];
+  const counts = list.data?.counts ?? {};
 
   function startManaging(pqrs: Pqrs) {
     setOpenId(pqrs.id);
@@ -84,7 +82,7 @@ export default function JuridicoPqrsPage() {
       });
       setOpenId(null);
       showToast(t("juridico.updatedToast"));
-      await loadItems();
+      list.reload();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("juridico.updateError"));
     } finally {
@@ -92,31 +90,29 @@ export default function JuridicoPqrsPage() {
     }
   }
 
-  const visibleItems = statusFilter === "ALL" ? items : items.filter((p) => p.status === statusFilter);
-
   return (
     <div className="space-y-4">
-      <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
-        <button
-          onClick={() => setStatusFilter("ALL")}
-          aria-pressed={statusFilter === "ALL"}
-          className={cn(FILTER, statusFilter === "ALL" ? FILTER_ON : FILTER_OFF)}
-        >
-          {t("juridico.all")}
-        </button>
-        {PQRS_STATUSES.map((value) => (
-          <button
-            key={value}
-            onClick={() => setStatusFilter(value)}
-            aria-pressed={statusFilter === value}
-            className={cn(FILTER, statusFilter === value ? FILTER_ON : FILTER_OFF)}
-          >
-            {t(`pqrsStatus.${value}`)}
-          </button>
-        ))}
-      </div>
+      <FilterTabs
+        options={[
+          { value: "ALL" as const, label: t("juridico.all"), count: counts.ALL ?? 0 },
+          ...PQRS_STATUSES.map((value) => ({ value, label: t(`pqrsStatus.${value}`), count: counts[value] ?? 0 })),
+        ]}
+        value={statusFilter}
+        onChange={(value) => {
+          setStatusFilter(value);
+          setPage(1);
+        }}
+      />
+      <SearchForm
+        placeholder={t("juridico.searchPlaceholder")}
+        onSearch={(value) => {
+          setQuery(value);
+          setPage(1);
+        }}
+      />
+      {list.error ? <p className="text-sm font-medium text-peligro">{list.error}</p> : null}
 
-      {visibleItems.length === 0 ? (
+      {!list.data ? null : visibleItems.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t("juridico.noRequests")}</p>
       ) : (
         <div className="space-y-3">
@@ -231,6 +227,7 @@ export default function JuridicoPqrsPage() {
           ))}
         </div>
       )}
+      <Pagination page={page} pageSize={PAGE_SIZE} total={list.data?.total ?? 0} onChange={setPage} />
     </div>
   );
 }

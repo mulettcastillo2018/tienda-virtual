@@ -8,6 +8,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { useToastStore } from "@/store/toast.store";
 import { AddressForm, type AddressFormValues } from "@/components/AddressForm";
 import { PqrsTimeline } from "@/components/PqrsTimeline";
+import { OrderProgress } from "@/components/OrderProgress";
 import { useT, useLocale } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 import { ORDER_STATUS_TONE, PQRS_STATUS_TONE } from "@/lib/statusTones";
@@ -380,6 +381,21 @@ export default function AccountPage() {
                               <p className="text-muted-foreground">{t("account.shippingCost", { amount: formatCOP(order.shippingCost) })}</p>
                               <p className="font-bold">{t("account.total", { amount: formatCOP(order.totalAmount) })}</p>
                             </div>
+                            {order.status !== "PENDING" ? (
+                              <div className="mt-4">
+                                <OrderProgress order={order} />
+                              </div>
+                            ) : null}
+                            {order.shippingAddress?.addressLine1 ? (
+                              <p className="mt-3 flex items-start gap-2 text-sm text-muted-foreground">
+                                <MapPin size={16} aria-hidden className="mt-0.5 shrink-0" />
+                                {t("account.shipTo", {
+                                  name: order.shippingAddress.fullName,
+                                  address: [order.shippingAddress.addressLine1, order.shippingAddress.addressLine2].filter(Boolean).join(", "),
+                                  city: order.shippingAddress.city,
+                                })}
+                              </p>
+                            ) : null}
                             {order.status === "PENDING" ? (
                               <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-aviso/10 p-3 text-sm">
                                 {order.expiresAt ? (

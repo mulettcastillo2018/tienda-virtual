@@ -4,6 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { requireAuth, requireAdminOrJuridico } from "../middleware/auth.middleware";
 import { catchAsync } from "../lib/catchAsync";
+import { pageArgs, pageQuery } from "../lib/pagination";
 import { createRateLimiter, limitRequests } from "../lib/rateLimit";
 import { sendPqrsUpdateEmail } from "../services/email.service";
 import { signedPrivateUrl } from "../services/storage";
@@ -123,21 +124,54 @@ pqrsRouter.get(
   })
 );
 
+const PQRS_STATUSES = ["RECIBIDO", "EN_PROCESO", "RESUELTO", "CERRADO"] as const;
+
+const listSchema = z.object({
+  ...pageQuery,
+  status: z.enum(PQRS_STATUSES).optional(),
+  q: z.string().trim().max(100).optional(),
+});
+
+// Solicitudes de a una página, por estado y buscadas por asunto o correo de
+// quien la envió. Incluye los conteos para las pestañas.
 pqrsRouter.get(
   "/",
   requireAuth,
   requireAdminOrJuridico,
-  catchAsync(async (_req, res) => {
-    const items = await prisma.pqrs.findMany({
-      orderBy: { createdAt: "desc" },
-      include: {
-        user: { select: { id: true, email: true, phone: true } },
-        respondedBy: { select: { id: true, email: true } },
-        order: { select: { id: true } },
-        ...statusLogInclude,
-      },
-    });
-    res.json(items.map(withSignedAttachments));
+  catchAsync(async (req, res) => {
+    const parsed = listSchema.safeParse(req.query);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.flatten() });
+      return;
+    }
+    const { page, pageSize, status, q } = parsed.data;
+    const where: Prisma.PqrsWhereInput = {
+      ...(status ? { status } : {}),
+      ...(q
+        ? { OR: [{ subject: { contains: q, mode: "insensitive" } }, { user: { email: { contains: q, mode: "insensitive" } } }] }
+        : {}),
+    };
+    const [items, total, byStatus] = await Promise.all([
+      prisma.pqrs.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        ...pageArgs({ page, pageSize }),
+        include: {
+          user: { select: { id: true, email: true, phone: true } },
+          respondedBy: { select: { id: true, email: true } },
+          order: { select: { id: true } },
+          ...statusLogInclude,
+        },
+      }),
+      prisma.pqrs.count({ where }),
+      prisma.pqrs.groupBy({ by: ["status"], _count: { _all: true } }),
+    ]);
+    const counts: Record<string, number> = { ALL: 0 };
+    for (const row of byStatus) {
+      counts[row.status] = row._count._all;
+      counts.ALL += row._count._all;
+    }
+    res.json({ items: items.map(withSignedAttachments), total, page, pageSize, counts });
   })
 );
 

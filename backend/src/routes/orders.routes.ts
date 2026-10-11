@@ -1,10 +1,12 @@
 import { Router } from "express";
+import type { OrderStatus, Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { requireAuth, requireAdmin } from "../middleware/auth.middleware";
 import { calculateShippingQuote } from "../services/carrier.service";
 import { sendShippingNotificationEmail } from "../services/email.service";
 import { catchAsync } from "../lib/catchAsync";
+import { pageArgs, pageQuery } from "../lib/pagination";
 import { getEffectivePrice, isDiscountActive } from "../lib/pricing";
 import { withPublicImages } from "../services/storage";
 import { cancelPendingOrder, lockOrder, paymentDeadline, transitionOrder } from "../services/orderLifecycle";
@@ -51,6 +53,12 @@ ordersRouter.post(
       return;
     }
 
+    // Primero lo que hay que quitar del carrito; después lo que hay que ajustar.
+    const retired = cart.items.find((item) => !item.product.isActive);
+    if (retired) {
+      res.status(409).json({ error: `"${retired.product.name}" ya no está disponible. Quítalo del carrito para continuar.` });
+      return;
+    }
     for (const item of cart.items) {
       if (item.product.stock < item.quantity) {
         res.status(409).json({ error: `Sin stock suficiente de "${item.product.name}"` });
@@ -93,7 +101,7 @@ ordersRouter.post(
         // limpiamente en vez de dejar el stock en negativo.
         for (const item of cart.items) {
           const result = await tx.product.updateMany({
-            where: { id: item.productId, stock: { gte: item.quantity } },
+            where: { id: item.productId, isActive: true, stock: { gte: item.quantity } },
             data: { stock: { decrement: item.quantity } },
           });
           if (result.count === 0) {
@@ -109,6 +117,7 @@ ordersRouter.post(
             shippingCost: shippingQuote.cost,
             carrier: shippingQuote.carrier,
             expiresAt: paymentDeadline(),
+            ...addressSnapshot(address),
             statusLogs: { create: { toStatus: "PENDING", reason: "Pedido creado", changedById: userId } },
             items: {
               create: cart.items.map((item) => ({
@@ -138,16 +147,76 @@ ordersRouter.post(
   })
 );
 
+// La dirección se copia al pedido al confirmarlo: si el cliente la edita
+// después, el despacho sigue yendo a donde se pidió.
+function addressSnapshot(address: {
+  fullName: string;
+  addressLine1: string;
+  addressLine2: string | null;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  phone: string;
+}) {
+  return {
+    shippingFullName: address.fullName,
+    shippingLine1: address.addressLine1,
+    shippingLine2: address.addressLine2,
+    shippingCity: address.city,
+    shippingState: address.state,
+    shippingPostalCode: address.postalCode,
+    shippingCountry: address.country,
+    shippingPhone: address.phone,
+  };
+}
+
+type SnapshotFields = {
+  shippingFullName: string | null;
+  shippingLine1: string | null;
+  shippingLine2: string | null;
+  shippingCity: string | null;
+  shippingState: string | null;
+  shippingPostalCode: string | null;
+  shippingCountry: string | null;
+  shippingPhone: string | null;
+};
+
+// La dirección del pedido con la forma de siempre (la que espera el frontend).
+function shippingAddressOf(order: SnapshotFields) {
+  return {
+    fullName: order.shippingFullName ?? "",
+    addressLine1: order.shippingLine1 ?? "",
+    addressLine2: order.shippingLine2,
+    city: order.shippingCity ?? "",
+    state: order.shippingState ?? "",
+    postalCode: order.shippingPostalCode ?? "",
+    country: order.shippingCountry ?? "CO",
+    phone: order.shippingPhone ?? "",
+  };
+}
+
 // Lo que ve el cliente de su pedido: sin el correo de quien creó el
 // descuento ni la respuesta completa de Wompi.
 const customerOrderInclude = {
   items: { include: { product: true, discountLog: { select: { discountPercentage: true } } } },
-  shippingAddress: true,
   payments: { orderBy: { createdAt: "desc" as const }, select: { status: true, paymentMethod: true, createdAt: true } },
-};
+  statusLogs: { orderBy: { changedAt: "asc" as const }, select: { fromStatus: true, toStatus: true, changedAt: true } },
+} satisfies Prisma.OrderInclude;
 
 function withProductImages<T extends { items: { product: { images: string[] } }[] }>(order: T): T {
   return { ...order, items: order.items.map((item) => ({ ...item, product: withPublicImages(item.product) })) };
+}
+
+// El cliente ve cuándo cambió de estado su pedido, no las notas internas
+// (motivos, revisiones de pago, quién lo cambió).
+function toCustomerOrder(order: Prisma.OrderGetPayload<{ include: typeof customerOrderInclude }>) {
+  const { statusLogs, ...rest } = withProductImages(order);
+  return {
+    ...rest,
+    shippingAddress: shippingAddressOf(order),
+    timeline: statusLogs.filter((log) => log.fromStatus !== log.toStatus).map((log) => ({ status: log.toStatus, at: log.changedAt })),
+  };
 }
 
 ordersRouter.get(
@@ -159,7 +228,7 @@ ordersRouter.get(
       orderBy: { createdAt: "desc" },
       include: customerOrderInclude,
     });
-    res.json(orders.map(withProductImages));
+    res.json(orders.map(toCustomerOrder));
   })
 );
 
@@ -175,7 +244,7 @@ ordersRouter.get(
       res.status(404).json({ error: "Orden no encontrada" });
       return;
     }
-    res.json(withProductImages(order));
+    res.json(toCustomerOrder(order));
   })
 );
 
@@ -205,21 +274,67 @@ const dispatchSchema = z.object({
   trackingNumber: z.string().trim().min(1),
 });
 
+const STATUSES = ["PENDING", "PAID", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"] as const satisfies readonly OrderStatus[];
+
+const adminListSchema = z.object({
+  ...pageQuery,
+  // Un estado, o REVIEW: los marcados para que un administrador los revise.
+  status: z.enum([...STATUSES, "REVIEW"]).optional(),
+  q: z.string().trim().max(100).optional(),
+});
+
+// Pedidos para el panel: por estado, buscados por número, correo o nombre de
+// quien recibe, de a una página. Incluye los conteos para las pestañas.
 ordersRouter.get(
   "/",
   requireAuth,
   requireAdmin,
-  catchAsync(async (_req, res) => {
-    const orders = await prisma.order.findMany({
-      orderBy: { createdAt: "desc" },
-      include: {
-        items: true,
-        shippingAddress: true,
-        user: { select: { id: true, email: true, role: true } },
-        payments: { orderBy: { createdAt: "desc" }, select: { status: true, paymentMethod: true, providerTransactionId: true, createdAt: true } },
-      },
-    });
-    res.json(orders);
+  catchAsync(async (req, res) => {
+    const parsed = adminListSchema.safeParse(req.query);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.flatten() });
+      return;
+    }
+    const { page, pageSize, status } = parsed.data;
+    // El cliente ve su pedido como "#" y los últimos 8 caracteres del número.
+    const q = parsed.data.q?.replace(/^#/, "");
+    const where: Prisma.OrderWhereInput = {
+      ...(status === "REVIEW" ? { needsReview: true } : status ? { status } : {}),
+      ...(q
+        ? {
+            OR: [
+              { id: { contains: q, mode: "insensitive" } },
+              { user: { email: { contains: q, mode: "insensitive" } } },
+              { shippingFullName: { contains: q, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    };
+    const [orders, total, byStatus, needsReview] = await Promise.all([
+      prisma.order.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        ...pageArgs({ page, pageSize }),
+        include: {
+          items: { select: { id: true, productId: true, quantity: true, priceAtPurchase: true, discountLogId: true } },
+          user: { select: { id: true, email: true, role: true } },
+          payments: { orderBy: { createdAt: "desc" }, select: { status: true, paymentMethod: true, providerTransactionId: true, createdAt: true } },
+          statusLogs: {
+            orderBy: { changedAt: "asc" },
+            select: { fromStatus: true, toStatus: true, reason: true, changedAt: true, changedBy: { select: { email: true } } },
+          },
+        },
+      }),
+      prisma.order.count({ where }),
+      prisma.order.groupBy({ by: ["status"], _count: { _all: true } }),
+      prisma.order.count({ where: { needsReview: true } }),
+    ]);
+    const counts: Record<string, number> = { ALL: 0, REVIEW: needsReview };
+    for (const row of byStatus) {
+      counts[row.status] = row._count._all;
+      counts.ALL += row._count._all;
+    }
+    res.json({ items: orders.map((order) => ({ ...order, shippingAddress: shippingAddressOf(order) })), total, page, pageSize, counts });
   })
 );
 
@@ -273,6 +388,45 @@ ordersRouter.post(
     res.json(order);
   })
 );
+
+// Pasos del pedido después del pago que marca la administración (el despacho
+// tiene su propia ruta porque registra transportadora y guía).
+const ADMIN_STEPS = {
+  process: { from: ["PAID"], to: "PROCESSING", reason: "En preparación", error: "Solo se puede preparar un pedido pagado." },
+  deliver: { from: ["SHIPPED"], to: "DELIVERED", reason: "Entregado al cliente", error: "Solo se puede marcar como entregado un pedido enviado." },
+} as const satisfies Record<string, { from: readonly OrderStatus[]; to: OrderStatus; reason: string; error: string }>;
+
+const stepSchema = z.object({ note: z.string().trim().max(200).optional() });
+
+for (const [path, step] of Object.entries(ADMIN_STEPS)) {
+  ordersRouter.post(
+    `/:id/${path}`,
+    requireAuth,
+    requireAdmin,
+    catchAsync(async (req, res) => {
+      const parsed = stepSchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        res.status(400).json({ error: "La nota no puede pasar de 200 caracteres." });
+        return;
+      }
+      const reason = parsed.data.note ? `${step.reason}: ${parsed.data.note}` : step.reason;
+      const result = await prisma.$transaction(async (tx) => {
+        const current = await lockOrder(tx, req.params.id);
+        if (!current) return null;
+        return transitionOrder(tx, current.id, [...step.from], step.to, reason, req.user!.userId);
+      });
+      if (result === null) {
+        res.status(404).json({ error: "Orden no encontrada" });
+        return;
+      }
+      if (!result) {
+        res.status(409).json({ error: step.error });
+        return;
+      }
+      res.json({ ok: true, status: step.to });
+    })
+  );
+}
 
 const reviewSchema = z.object({ note: z.string().trim().min(3).max(500) });
 

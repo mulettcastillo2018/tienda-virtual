@@ -13,6 +13,7 @@ import {
   Share2,
   ShieldAlert,
   Tags,
+  TrendingUp,
   Truck,
   Users,
 } from "lucide-react";
@@ -28,6 +29,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const TABS = [
     { href: "/admin", label: t("adminNav.orders"), Icon: Package },
+    { href: "/admin/sales", label: t("adminNav.sales"), Icon: TrendingUp },
     { href: "/admin/products", label: t("adminNav.products"), Icon: Boxes },
     { href: "/admin/categories", label: t("adminNav.categories"), Icon: Tags },
     { href: "/admin/discounts", label: t("adminNav.discounts"), Icon: Percent },

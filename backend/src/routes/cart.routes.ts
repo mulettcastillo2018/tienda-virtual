@@ -7,11 +7,40 @@ import { withPublicImages } from "../services/storage";
 
 export const cartRouter = Router();
 
+// Tope por producto: evita pedidos absurdos por un error de dedo.
+export const MAX_PER_PRODUCT = 99;
+
 async function getOrCreateCart(userId: string) {
   const cart = await prisma.cart.findUnique({ where: { userId } });
   if (cart) return cart;
   return prisma.cart.create({ data: { userId } });
 }
+
+// El carrito no reserva inventario: un producto puede desactivarse o agotarse
+// mientras espera ahí. Cada línea dice si se puede comprar tal como está.
+type CartIssue = "INACTIVE" | "OUT_OF_STOCK" | "NOT_ENOUGH_STOCK";
+
+function cartIssue(product: { isActive: boolean; stock: number }, quantity: number): CartIssue | null {
+  if (!product.isActive) return "INACTIVE";
+  if (product.stock <= 0) return "OUT_OF_STOCK";
+  if (product.stock < quantity) return "NOT_ENOUGH_STOCK";
+  return null;
+}
+
+// Por qué no se puede llevar esa cantidad, o null si se puede.
+function quantityError(product: { name: string; stock: number }, quantity: number, inCart = 0) {
+  if (quantity > MAX_PER_PRODUCT) return `Puedes llevar máximo ${MAX_PER_PRODUCT} unidades de "${product.name}".`;
+  if (product.stock <= 0) return `"${product.name}" está agotado.`;
+  if (quantity > product.stock) {
+    return inCart > 0
+      ? `Solo quedan ${product.stock} unidades de "${product.name}" y ya tienes ${inCart} en el carrito.`
+      : `Solo quedan ${product.stock} unidades de "${product.name}".`;
+  }
+  return null;
+}
+
+const UNAVAILABLE = "Este producto ya no está disponible.";
+const NOT_IN_CART = "Ese producto no está en tu carrito.";
 
 cartRouter.get(
   "/",
@@ -21,14 +50,18 @@ cartRouter.get(
     const items = await prisma.cartItem.findMany({
       where: { cartId: cart.id },
       include: { product: true },
+      orderBy: { id: "asc" },
     });
-    res.json({ id: cart.id, items: items.map((item) => ({ ...item, product: withPublicImages(item.product) })) });
+    res.json({
+      id: cart.id,
+      items: items.map((item) => ({ ...item, product: withPublicImages(item.product), issue: cartIssue(item.product, item.quantity) })),
+    });
   })
 );
 
 const addItemSchema = z.object({
   productId: z.string().min(1),
-  quantity: z.number().int().positive().default(1),
+  quantity: z.number().int().positive().max(MAX_PER_PRODUCT).default(1),
 });
 
 cartRouter.post(
@@ -43,6 +76,22 @@ cartRouter.post(
     const cart = await getOrCreateCart(req.user!.userId);
     const { productId, quantity } = parsed.data;
 
+    const product = await prisma.product.findUnique({ where: { id: productId }, select: { name: true, stock: true, isActive: true } });
+    if (!product || !product.isActive) {
+      res.status(404).json({ error: UNAVAILABLE });
+      return;
+    }
+    const existing = await prisma.cartItem.findUnique({
+      where: { cartId_productId: { cartId: cart.id, productId } },
+      select: { quantity: true },
+    });
+    const inCart = existing?.quantity ?? 0;
+    const error = quantityError(product, inCart + quantity, inCart);
+    if (error) {
+      res.status(409).json({ error });
+      return;
+    }
+
     const item = await prisma.cartItem.upsert({
       where: { cartId_productId: { cartId: cart.id, productId } },
       create: { cartId: cart.id, productId, quantity },
@@ -52,7 +101,7 @@ cartRouter.post(
   })
 );
 
-const updateItemSchema = z.object({ quantity: z.number().int().min(1) });
+const updateItemSchema = z.object({ quantity: z.number().int().min(1).max(MAX_PER_PRODUCT) });
 
 cartRouter.put(
   "/items/:productId",
@@ -64,10 +113,26 @@ cartRouter.put(
       return;
     }
     const cart = await getOrCreateCart(req.user!.userId);
-    const item = await prisma.cartItem.update({
-      where: { cartId_productId: { cartId: cart.id, productId: req.params.productId } },
-      data: { quantity: parsed.data.quantity },
-    });
+    const where = { cartId_productId: { cartId: cart.id, productId: req.params.productId } };
+    const current = await prisma.cartItem.findUnique({ where, include: { product: { select: { name: true, stock: true, isActive: true } } } });
+    if (!current) {
+      res.status(404).json({ error: NOT_IN_CART });
+      return;
+    }
+    // Bajar la cantidad siempre se puede (acerca la línea a lo disponible);
+    // subirla exige que el producto siga a la venta y alcance.
+    if (parsed.data.quantity > current.quantity) {
+      if (!current.product.isActive) {
+        res.status(404).json({ error: UNAVAILABLE });
+        return;
+      }
+      const error = quantityError(current.product, parsed.data.quantity);
+      if (error) {
+        res.status(409).json({ error });
+        return;
+      }
+    }
+    const item = await prisma.cartItem.update({ where, data: { quantity: parsed.data.quantity } });
     res.json(item);
   })
 );
@@ -87,9 +152,11 @@ cartRouter.delete(
   requireAuth,
   catchAsync(async (req, res) => {
     const cart = await getOrCreateCart(req.user!.userId);
-    await prisma.cartItem.delete({
-      where: { cartId_productId: { cartId: cart.id, productId: req.params.productId } },
-    });
+    const { count } = await prisma.cartItem.deleteMany({ where: { cartId: cart.id, productId: req.params.productId } });
+    if (count === 0) {
+      res.status(404).json({ error: NOT_IN_CART });
+      return;
+    }
     res.status(204).send();
   })
 );

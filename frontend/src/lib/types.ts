@@ -47,6 +47,8 @@ export interface CartItem {
   productId: string;
   quantity: number;
   product: Product;
+  // Lo que impide comprar la línea tal como está (null si se puede).
+  issue?: "INACTIVE" | "OUT_OF_STOCK" | "NOT_ENOUGH_STOCK" | null;
 }
 
 export interface Cart {
@@ -108,7 +110,23 @@ export interface Order {
     discountLogId: string | null;
     discountLog?: { discountPercentage: number } | null;
   }[];
-  shippingAddress?: ShippingAddress;
+  // Copia de la dirección al momento de comprar (no cambia si el cliente edita la suya).
+  shippingAddress?: OrderShipping;
+  // Cliente: cuándo cambió de estado (sin notas internas).
+  timeline?: { status: OrderStatus; at: string }[];
+  // Panel: la bitácora completa.
+  statusLogs?: { fromStatus: OrderStatus | null; toStatus: OrderStatus; reason: string | null; changedAt: string; changedBy: { email: string } | null }[];
+}
+
+export type OrderShipping = Pick<ShippingAddress, "fullName" | "addressLine1" | "addressLine2" | "city" | "state" | "postalCode" | "country" | "phone">;
+
+// Una página del listado de pedidos del panel, con los conteos de cada pestaña.
+export interface AdminOrdersPage {
+  items: Order[];
+  total: number;
+  page: number;
+  pageSize: number;
+  counts: Partial<Record<OrderStatus | "ALL" | "REVIEW", number>>;
 }
 
 export type UserRole = "ADMIN" | "JURIDICO" | "CUSTOMER";
@@ -156,6 +174,26 @@ export interface Pqrs {
   respondedBy?: { id: string; email: string } | null;
   order?: { id: string } | null;
   statusLogs?: PqrsStatusLog[];
+}
+
+// Resumen del tablero de ventas (GET /sales/summary).
+export interface SalesTotals {
+  revenue: number;
+  orders: number;
+  units: number;
+  avgTicket: number;
+}
+
+export interface SalesSummary {
+  days: 7 | 30 | 90;
+  from: string;
+  to: string;
+  current: SalesTotals;
+  previous: SalesTotals;
+  daily: { date: string; revenue: number; orders: number }[];
+  topProducts: { id: string; name: string; units: number; revenue: number }[];
+  byStatus: Partial<Record<OrderStatus, number>>;
+  toShip: number;
 }
 
 export interface PqrsStats {

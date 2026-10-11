@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Minus, Plus, ShieldCheck, ShoppingBag, Trash2 } from "lucide-react";
+import { AlertTriangle, Minus, Plus, ShieldCheck, ShoppingBag, Trash2 } from "lucide-react";
+import { ApiError } from "@/lib/api";
 import { useAuthStore } from "@/store/auth.store";
 import { useCartStore } from "@/store/cart.store";
+import { useToastStore } from "@/store/toast.store";
 import { getEffectivePrice, isDiscountActive } from "@/lib/pricing";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
@@ -19,7 +21,10 @@ function formatCOP(amount: number) {
 }
 
 const stepButton =
-  "flex size-10 items-center justify-center rounded-full text-muted-foreground transition-colors duration-200 hover:bg-surface-2 hover:text-foreground";
+  "flex size-10 items-center justify-center rounded-full text-muted-foreground transition-colors duration-200 hover:bg-surface-2 hover:text-foreground disabled:pointer-events-none disabled:opacity-35";
+
+// Mismo tope por producto que el backend.
+const MAX_PER_PRODUCT = 99;
 
 export default function CartPage() {
   const token = useAuthStore((state) => state.token);
@@ -27,7 +32,19 @@ export default function CartPage() {
   const { cart, fetchCart, updateItem, removeItem, clearCart } = useCartStore();
   const [confirmingClear, setConfirmingClear] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const showToast = useToastStore((state) => state.show);
   const t = useT();
+
+  // Si el servidor rechaza un cambio (se agotó, lo desactivaron), se dice por qué
+  // y se vuelve a leer el carrito para mostrarlo como está.
+  async function change(action: () => Promise<void>) {
+    try {
+      await action();
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : t("cart.updateError"));
+      fetchCart().catch(() => {});
+    }
+  }
 
   async function handleClearCart() {
     setClearing(true);
@@ -62,6 +79,7 @@ export default function CartPage() {
 
   const items = cart?.items ?? [];
   const subtotal = items.reduce((sum, item) => sum + getEffectivePrice(item.product) * item.quantity, 0);
+  const blocked = items.some((item) => item.issue);
 
   return (
     // En celular se deja espacio abajo para la barra fija de pago.
@@ -110,11 +128,19 @@ export default function CartPage() {
           <ul className="grid gap-3">
             {items.map((item) => {
               const unitPrice = getEffectivePrice(item.product);
+              const gone = item.issue === "INACTIVE" || item.issue === "OUT_OF_STOCK";
+              const atMax = item.quantity >= Math.min(item.product.stock, MAX_PER_PRODUCT);
               return (
-                <li key={item.id} className="flex gap-3 rounded-3xl border border-border bg-surface p-3 shadow-suave sm:gap-5 sm:p-4">
+                <li
+                  key={item.id}
+                  className={cn(
+                    "flex gap-3 rounded-3xl border bg-surface p-3 shadow-suave sm:gap-5 sm:p-4",
+                    gone ? "border-peligro/40" : item.issue ? "border-aviso/50" : "border-border"
+                  )}
+                >
                   <Link
                     href={`/products/${item.productId}`}
-                    className="product-media relative size-24 shrink-0 overflow-hidden rounded-2xl sm:size-28"
+                    className={cn("product-media relative size-24 shrink-0 overflow-hidden rounded-2xl sm:size-28", gone && "opacity-50 grayscale")}
                   >
                     {item.product.images[0] ? (
                       <Image src={item.product.images[0]} alt={item.product.name} fill sizes="112px" className="object-cover" />
@@ -136,7 +162,7 @@ export default function CartPage() {
                         </p>
                       </div>
                       <button
-                        onClick={() => removeItem(item.productId)}
+                        onClick={() => change(() => removeItem(item.productId))}
                         aria-label={t("cart.remove")}
                         title={t("cart.remove")}
                         className="-mt-1 -mr-1 flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors duration-200 hover:bg-peligro/10 hover:text-peligro"
@@ -145,24 +171,57 @@ export default function CartPage() {
                       </button>
                     </div>
 
-                    <div className="mt-auto flex items-end justify-between gap-3 pt-3">
-                      {/* Cantidad en cápsula: menos, número, más */}
-                      <div className="flex items-center rounded-full border border-border bg-background">
-                        <button
-                          onClick={() => updateItem(item.productId, Math.max(1, item.quantity - 1))}
-                          aria-label={t("cart.decrease")}
-                          className={stepButton}
-                        >
-                          <Minus size={15} />
-                        </button>
-                        <span key={item.quantity} className="animate-emerger w-7 text-center text-sm font-semibold tabular-nums">
-                          {item.quantity}
+                    {item.issue ? (
+                      <p className={cn("mt-2 flex items-start gap-1.5 text-xs font-medium", gone ? "text-peligro" : "text-aviso")}>
+                        <AlertTriangle size={14} aria-hidden className="mt-px shrink-0" />
+                        <span>
+                          {item.issue === "INACTIVE"
+                            ? t("cart.issueInactive")
+                            : item.issue === "OUT_OF_STOCK"
+                              ? t("cart.issueOutOfStock")
+                              : t("cart.issueNotEnough", { n: item.product.stock })}
+                          {item.issue === "NOT_ENOUGH_STOCK" ? (
+                            <button
+                              onClick={() => change(() => updateItem(item.productId, item.product.stock))}
+                              className="ml-2 font-semibold text-foreground underline underline-offset-4"
+                            >
+                              {t("cart.keepOnly", { n: item.product.stock })}
+                            </button>
+                          ) : null}
                         </span>
-                        <button onClick={() => updateItem(item.productId, item.quantity + 1)} aria-label={t("cart.increase")} className={stepButton}>
-                          <Plus size={15} />
-                        </button>
-                      </div>
-                      <p className="text-base font-bold tracking-tight tabular-nums">{formatCOP(unitPrice * item.quantity)}</p>
+                      </p>
+                    ) : null}
+
+                    <div className="mt-auto flex items-end justify-between gap-3 pt-3">
+                      {/* Cantidad en cápsula: menos, número, más (no aplica a lo que ya no se vende) */}
+                      {gone ? (
+                        <span />
+                      ) : (
+                        <div className="flex items-center rounded-full border border-border bg-background">
+                          <button
+                            onClick={() => change(() => updateItem(item.productId, item.quantity - 1))}
+                            disabled={item.quantity <= 1}
+                            aria-label={t("cart.decrease")}
+                            className={stepButton}
+                          >
+                            <Minus size={15} />
+                          </button>
+                          <span key={item.quantity} className="animate-emerger w-7 text-center text-sm font-semibold tabular-nums">
+                            {item.quantity}
+                          </span>
+                          <button
+                            onClick={() => change(() => updateItem(item.productId, item.quantity + 1))}
+                            disabled={atMax}
+                            aria-label={atMax ? t("cart.maxReached") : t("cart.increase")}
+                            className={stepButton}
+                          >
+                            <Plus size={15} />
+                          </button>
+                        </div>
+                      )}
+                      <p className={cn("text-base font-bold tracking-tight tabular-nums", gone && "text-muted-foreground")}>
+                        {formatCOP(unitPrice * item.quantity)}
+                      </p>
                     </div>
                   </div>
                 </li>
@@ -183,7 +242,13 @@ export default function CartPage() {
                 <dd className="text-2xl font-bold tracking-tight tabular-nums">{formatCOP(subtotal)}</dd>
               </div>
             </dl>
-            <Button size="lg" block onClick={() => router.push("/checkout")} {...magnetic} className="mt-6 hidden md:inline-flex">
+            {blocked ? (
+              <p className="mt-5 flex items-start gap-1.5 text-sm font-medium text-aviso">
+                <AlertTriangle size={16} aria-hidden className="mt-0.5 shrink-0" />
+                {t("cart.fixToContinue")}
+              </p>
+            ) : null}
+            <Button size="lg" block disabled={blocked} onClick={() => router.push("/checkout")} {...magnetic} className="mt-6 hidden md:inline-flex">
               {t("cart.continueToPayment")}
             </Button>
             <p className="mt-4 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
@@ -201,7 +266,7 @@ export default function CartPage() {
               <p className="text-xs text-muted-foreground">{t("cart.subtotal")}</p>
               <p className="text-lg leading-tight font-bold tracking-tight tabular-nums">{formatCOP(subtotal)}</p>
             </div>
-            <Button onClick={() => router.push("/checkout")} className="ml-auto h-12 flex-1">
+            <Button disabled={blocked} onClick={() => router.push("/checkout")} className="ml-auto h-12 flex-1">
               {t("cart.continueToPayment")}
             </Button>
           </div>

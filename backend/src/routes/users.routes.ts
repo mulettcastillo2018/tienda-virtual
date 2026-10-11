@@ -1,31 +1,55 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
+import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { requireAuth, requireAdmin } from "../middleware/auth.middleware";
 import { catchAsync } from "../lib/catchAsync";
+import { pageArgs, pageQuery } from "../lib/pagination";
 import { forgetUserState } from "../lib/userState";
 
 export const usersRouter = Router();
 
+const listSchema = z.object({
+  ...pageQuery,
+  role: z.enum(["ADMIN", "JURIDICO", "CUSTOMER"]).optional(),
+  q: z.string().trim().max(100).optional(),
+});
+
+// Usuarios de a una página, por rol y buscados por correo o teléfono.
 usersRouter.get(
   "/",
   requireAuth,
   requireAdmin,
-  catchAsync(async (_req, res) => {
-    const users = await prisma.user.findMany({
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        email: true,
-        phone: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-        _count: { select: { orders: true } },
-      },
-    });
-    res.json(users);
+  catchAsync(async (req, res) => {
+    const parsed = listSchema.safeParse(req.query);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.flatten() });
+      return;
+    }
+    const { page, pageSize, role, q } = parsed.data;
+    const where: Prisma.UserWhereInput = {
+      ...(role ? { role } : {}),
+      ...(q ? { OR: [{ email: { contains: q, mode: "insensitive" } }, { phone: { contains: q } }] } : {}),
+    };
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        ...pageArgs({ page, pageSize }),
+        select: {
+          id: true,
+          email: true,
+          phone: true,
+          role: true,
+          isActive: true,
+          createdAt: true,
+          _count: { select: { orders: true } },
+        },
+      }),
+      prisma.user.count({ where }),
+    ]);
+    res.json({ items: users, total, page, pageSize });
   })
 );
 

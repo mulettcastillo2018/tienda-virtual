@@ -28,38 +28,43 @@ enum PqrsStatus {
 }
 
 model Pqrs {
-  id             String          @id @default(cuid())
-  userId         String
-  user           User            @relation("PqrsSubmitted", fields: [userId], references: [id])
-  type           PqrsType
-  subject        String
-  message        String
-  attachmentUrl  String?
-  status         PqrsStatus      @default(RECIBIDO)
-  dueAt          DateTime
-  orderId        String?
-  order          Order?          @relation(fields: [orderId], references: [id])
-  response       String?
+  id                    String          @id @default(cuid())
+  userId                String
+  user                  User            @relation("PqrsSubmitted", fields: [userId], references: [id])
+  type                  PqrsType
+  subject               String
+  message               String
+  attachmentUrl         String?
+  status                PqrsStatus      @default(RECIBIDO)
+  dueAt                 DateTime
+  orderId               String?
+  order                 Order?          @relation(fields: [orderId], references: [id])
+  response              String?
   responseAttachmentUrl String?
-  respondedById  String?
-  respondedBy    User?           @relation("PqrsResponded", fields: [respondedById], references: [id])
-  respondedAt    DateTime?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  statusLogs     PqrsStatusLog[]
+  respondedById         String?
+  respondedBy           User?           @relation("PqrsResponded", fields: [respondedById], references: [id])
+  respondedAt           DateTime?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  statusLogs            PqrsStatusLog[]
+
+  @@index([userId])
+  @@index([orderId])
 }
 
 model PqrsStatusLog {
-  id          String      @id @default(cuid())
-  pqrsId      String
-  pqrs        Pqrs        @relation(fields: [pqrsId], references: [id], onDelete: Cascade)
-  fromStatus  PqrsStatus?
-  toStatus    PqrsStatus
-  comment     String?
+  id            String      @id @default(cuid())
+  pqrsId        String
+  pqrs          Pqrs        @relation(fields: [pqrsId], references: [id], onDelete: Cascade)
+  fromStatus    PqrsStatus?
+  toStatus      PqrsStatus
+  comment       String?
   attachmentUrl String?
-  changedById String
-  changedBy   User        @relation(fields: [changedById], references: [id])
-  changedAt   DateTime    @default(now())
+  changedById   String
+  changedBy     User        @relation(fields: [changedById], references: [id])
+  changedAt     DateTime    @default(now())
+
+  @@index([pqrsId])
 }
 
 model Carrier {
@@ -115,27 +120,27 @@ enum PaymentProvider {
 }
 
 model User {
-  id                  String                @id @default(cuid())
-  email               String                @unique
+  id                  String               @id @default(cuid())
+  email               String               @unique
   phone               String?
   passwordHash        String?
   provider            String?
   providerId          String?
-  role                Role                  @default(CUSTOMER)
-  isActive            Boolean               @default(true)
+  role                Role                 @default(CUSTOMER)
+  isActive            Boolean              @default(true)
   // Va dentro de cada token de sesión. Al cambiar la contraseña, el rol o
   // desactivar la cuenta se incrementa, y todos los tokens anteriores dejan
   // de servir de inmediato.
-  tokenVersion        Int                   @default(0)
-  createdAt           DateTime              @default(now())
+  tokenVersion        Int                  @default(0)
+  createdAt           DateTime             @default(now())
   oauthLoginCodes     OAuthLoginCode[]
   uploadedFiles       UploadedFile[]
   addresses           ShippingAddress[]
   cart                Cart?
   orders              Order[]
   passwordResetTokens PasswordResetToken[]
-  pqrsSubmitted       Pqrs[]                @relation("PqrsSubmitted")
-  pqrsResponded       Pqrs[]                @relation("PqrsResponded")
+  pqrsSubmitted       Pqrs[]               @relation("PqrsSubmitted")
+  pqrsResponded       Pqrs[]               @relation("PqrsResponded")
   pqrsStatusChanges   PqrsStatusLog[]
   discountLogsCreated ProductDiscountLog[]
   storeReviews        StoreReview[]
@@ -170,6 +175,8 @@ model OAuthLoginCode {
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model PasswordResetToken {
@@ -180,6 +187,8 @@ model PasswordResetToken {
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model Category {
@@ -191,27 +200,29 @@ model Category {
 }
 
 model Product {
-  id             String      @id @default(cuid())
-  name           String
-  description    String
-  price          Int
+  id                 String               @id @default(cuid())
+  name               String
+  description        String
+  price              Int
   discountPercentage Int?
-  discountEndsAt DateTime?
-  brand          String?
-  stock          Int         @default(0)
-  categoryId     String
-  category       Category    @relation(fields: [categoryId], references: [id])
-  images         String[]
-  weightInGrams  Int
-  widthCm        Float
-  heightCm       Float
-  depthCm        Float
-  sku            String      @unique
-  isActive       Boolean     @default(true)
-  createdAt      DateTime    @default(now())
-  cartItems      CartItem[]
-  orderItems     OrderItem[]
-  discountLogs   ProductDiscountLog[]
+  discountEndsAt     DateTime?
+  brand              String?
+  stock              Int                  @default(0)
+  categoryId         String
+  category           Category             @relation(fields: [categoryId], references: [id])
+  images             String[]
+  weightInGrams      Int
+  widthCm            Float
+  heightCm           Float
+  depthCm            Float
+  sku                String               @unique
+  isActive           Boolean              @default(true)
+  createdAt          DateTime             @default(now())
+  cartItems          CartItem[]
+  orderItems         OrderItem[]
+  discountLogs       ProductDiscountLog[]
+
+  @@index([categoryId])
 }
 
 model ProductDiscountLog {
@@ -225,6 +236,8 @@ model ProductDiscountLog {
   createdBy          User        @relation(fields: [createdById], references: [id])
   createdAt          DateTime    @default(now())
   orderItems         OrderItem[]
+
+  @@index([productId])
 }
 
 model Cart {
@@ -243,24 +256,27 @@ model CartItem {
   quantity  Int
 
   @@unique([cartId, productId])
+  @@index([productId])
 }
 
 model ShippingAddress {
-  id            String              @id @default(cuid())
-  userId        String
-  user          User                @relation(fields: [userId], references: [id])
-  fullName      String
-  addressLine1  String
-  addressLine2  String?
-  city          String
-  state         String
-  postalCode    String
-  country       String              @default("CO")
-  phone         String
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
-  orders        Order[]
-  changeLogs    AddressChangeLog[]
+  id           String             @id @default(cuid())
+  userId       String
+  user         User               @relation(fields: [userId], references: [id])
+  fullName     String
+  addressLine1 String
+  addressLine2 String?
+  city         String
+  state        String
+  postalCode   String
+  country      String             @default("CO")
+  phone        String
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  orders       Order[]
+  changeLogs   AddressChangeLog[]
+
+  @@index([userId])
 }
 
 model AddressChangeLog {
@@ -270,35 +286,50 @@ model AddressChangeLog {
   previousData Json
   newData      Json
   changedAt    DateTime        @default(now())
+
+  @@index([addressId])
 }
 
 model Order {
-  id                String          @id @default(cuid())
-  userId            String
-  user              User            @relation(fields: [userId], references: [id])
-  totalAmount       Int
-  shippingAddressId String
-  shippingAddress   ShippingAddress @relation(fields: [shippingAddressId], references: [id])
-  shippingCost      Int             @default(0)
-  carrier           String?
-  trackingNumber    String?
-  status            OrderStatus     @default(PENDING)
-  createdAt         DateTime        @default(now())
+  id                 String           @id @default(cuid())
+  userId             String
+  user               User             @relation(fields: [userId], references: [id])
+  totalAmount        Int
+  shippingAddressId  String
+  shippingAddress    ShippingAddress  @relation(fields: [shippingAddressId], references: [id])
+  // Copia de la dirección al momento de comprar: si el cliente la edita
+  // después, el pedido se despacha a donde se pidió.
+  shippingFullName   String?
+  shippingLine1      String?
+  shippingLine2      String?
+  shippingCity       String?
+  shippingState      String?
+  shippingPostalCode String?
+  shippingCountry    String?
+  shippingPhone      String?
+  shippingCost       Int              @default(0)
+  carrier            String?
+  trackingNumber     String?
+  status             OrderStatus      @default(PENDING)
+  createdAt          DateTime         @default(now())
   // Hasta cuándo se puede pagar un pedido PENDING. Después se cancela solo y
   // el inventario reservado vuelve a estar disponible.
-  expiresAt         DateTime?
+  expiresAt          DateTime?
   // Algo en el pago necesita que una persona lo revise (p. ej. un pago
   // aprobado sobre un pedido ya pagado, que hay que reembolsar).
-  needsReview       Boolean         @default(false)
-  reviewNote        String?
-  items             OrderItem[]
-  payments          Payment[]
-  statusLogs        OrderStatusLog[]
-  pqrsList          Pqrs[]
-  storeReview       StoreReview?
+  needsReview        Boolean          @default(false)
+  reviewNote         String?
+  items              OrderItem[]
+  payments           Payment[]
+  statusLogs         OrderStatusLog[]
+  pqrsList           Pqrs[]
+  storeReview        StoreReview?
 
   @@index([userId])
   @@index([status, expiresAt])
+  @@index([status, createdAt])
+  @@index([createdAt])
+  @@index([shippingAddressId])
 }
 
 // Cada cambio de estado de un pedido: quién (null = el sistema: pago,
@@ -330,6 +361,8 @@ model StoreReview {
   rating    Int
   comment   String
   createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model OrderItem {
@@ -342,6 +375,9 @@ model OrderItem {
   priceAtPurchase Int
   discountLogId   String?
   discountLog     ProductDiscountLog? @relation(fields: [discountLogId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
 }
 
 // Un intento de pago (una referencia de Wompi). Un pedido puede tener varios:
