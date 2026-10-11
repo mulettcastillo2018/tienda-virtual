@@ -7,8 +7,9 @@ import { parseNit } from "../lib/tax";
 
 export const contactInfoRouter = Router();
 
+// Mientras no se guarden los datos reales en el panel (Contacto).
 const DEFAULTS = {
-  legalName: "",
+  legalName: "Tienda Virtual (sitio de demostración)",
   nit: "",
   phone: "+57 300 000 0000",
   whatsapp: "+57 300 000 0000",
