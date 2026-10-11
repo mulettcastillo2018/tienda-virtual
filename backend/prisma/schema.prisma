@@ -117,6 +117,26 @@ enum OrderStatus {
 
 enum PaymentProvider {
   WOMPI
+  // Cobro en efectivo al entregar (contra entrega).
+  CASH
+}
+
+// Cómo paga el cliente: en línea con Wompi o en efectivo al recibir.
+enum PaymentOption {
+  ONLINE
+  CASH_ON_DELIVERY
+}
+
+// Configuración de la tienda (una sola fila, id "main").
+model StoreSettings {
+  id           String   @id @default("main")
+  // Pago contra entrega: solo en estas ciudades y hasta este valor (con envío
+  // y recargo), para controlar el riesgo de pedidos que no se reciben.
+  codEnabled   Boolean  @default(false)
+  codCities    String[] @default([])
+  codMaxAmount Int      @default(500000)
+  codFee       Int      @default(0)
+  updatedAt    DateTime @updatedAt
 }
 
 model User {
@@ -292,11 +312,14 @@ model AddressChangeLog {
 
 model Order {
   id                 String           @id @default(cuid())
-  userId             String
-  user               User             @relation(fields: [userId], references: [id])
+  // Vacío en las compras como invitado: el cliente ve su pedido con un enlace
+  // firmado y se le escribe a guestEmail.
+  userId             String?
+  user               User?            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  guestEmail         String?
   totalAmount        Int
-  shippingAddressId  String
-  shippingAddress    ShippingAddress  @relation(fields: [shippingAddressId], references: [id])
+  shippingAddressId  String?
+  shippingAddress    ShippingAddress? @relation(fields: [shippingAddressId], references: [id], onDelete: Restrict)
   // Copia de la dirección al momento de comprar: si el cliente la edita
   // después, el pedido se despacha a donde se pidió.
   shippingFullName   String?
@@ -308,6 +331,9 @@ model Order {
   shippingCountry    String?
   shippingPhone      String?
   shippingCost       Int              @default(0)
+  paymentOption      PaymentOption    @default(ONLINE)
+  // Recargo por pago contra entrega (ya incluido en totalAmount).
+  codFee             Int              @default(0)
   carrier            String?
   trackingNumber     String?
   status             OrderStatus      @default(PENDING)
@@ -326,6 +352,7 @@ model Order {
   storeReview        StoreReview?
 
   @@index([userId])
+  @@index([paymentOption, status])
   @@index([status, expiresAt])
   @@index([status, createdAt])
   @@index([createdAt])

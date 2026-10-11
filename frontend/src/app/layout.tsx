@@ -8,10 +8,17 @@ import { Toast } from "@/components/layout/Toast";
 import { WhatsAppFloatButton } from "@/components/layout/WhatsAppFloatButton";
 import { DecorativeBackground } from "@/components/layout/DecorativeBackground";
 import { LocaleEffect } from "@/components/layout/LocaleEffect";
+import { SITE_URL, STORE_NAME } from "@/lib/serverApi";
+
+const DESCRIPTION = "Compra en línea con envío a toda Colombia y pago seguro con tarjeta, PSE o Nequi. Ofertas relámpago y atención por WhatsApp.";
 
 export const metadata: Metadata = {
-  title: "Tienda Virtual",
-  description: "Tienda virtual de productos físicos con pagos por Wompi.",
+  metadataBase: new URL(SITE_URL),
+  title: { default: `${STORE_NAME}: compra en línea con envío a toda Colombia`, template: `%s · ${STORE_NAME}` },
+  description: DESCRIPTION,
+  applicationName: STORE_NAME,
+  openGraph: { type: "website", siteName: STORE_NAME, locale: "es_CO", description: DESCRIPTION },
+  twitter: { card: "summary_large_image" },
 };
 
 // Plus Jakarta Sans: sans-serif comercial de alta gama, muy legible en celular.

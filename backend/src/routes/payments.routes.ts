@@ -1,6 +1,7 @@
-import { Router } from "express";
+import { Router, type NextFunction, type Request, type Response } from "express";
 import { prisma } from "../lib/prisma";
 import { requireAuth } from "../middleware/auth.middleware";
+import { isValidOrderToken } from "../lib/orderAccess";
 import { generateIntegritySignature, generateOrderReference, verifyWebhookChecksum, type WompiTransaction } from "../services/wompi.service";
 import { applyWompiTransaction, syncOrderPayments } from "../services/payments.service";
 import { cancelPendingOrder } from "../services/orderLifecycle";
@@ -12,29 +13,52 @@ export const paymentsRouter = Router();
 // se reutiliza el intento recién creado en vez de abrir otro.
 const REUSE_ATTEMPT_MS = 2 * 60_000;
 
-function notPayableMessage(status: string): string {
-  if (status === "CANCELLED") return "Este pedido se canceló. Los productos volvieron a tu carrito.";
+function notPayableMessage(status: string, guest: boolean): string {
+  if (status === "CANCELLED") return guest ? "Este pedido se canceló." : "Este pedido se canceló. Los productos volvieron a tu carrito.";
   return "Este pedido ya está pagado.";
+}
+
+// Quién puede ver o pagar un pedido: su dueño con sesión, o quien tenga el
+// enlace firmado de un pedido hecho como invitado (cabecera X-Order-Token).
+function orderAccess(req: Request, res: Response, next: NextFunction) {
+  const token = req.get("x-order-token");
+  if (token === undefined) return requireAuth(req, res, next);
+  if (!isValidOrderToken(req.params.orderId, token)) {
+    res.status(404).json({ error: "Orden no encontrada" });
+    return;
+  }
+  next();
+}
+
+// Filtro del pedido según el acceso: el del usuario, o uno de invitado.
+function ownOrder(req: Request) {
+  if (!req.user) return { id: req.params.orderId, userId: null };
+  return { id: req.params.orderId, ...(req.user.role === "ADMIN" ? {} : { userId: req.user.userId }) };
 }
 
 paymentsRouter.post(
   "/wompi/initiate/:orderId",
-  requireAuth,
+  orderAccess,
   catchAsync(async (req, res) => {
     const order = await prisma.order.findFirst({
-      where: { id: req.params.orderId, userId: req.user!.userId },
+      where: req.user ? { id: req.params.orderId, userId: req.user.userId } : ownOrder(req),
     });
     if (!order) {
       res.status(404).json({ error: "Orden no encontrada" });
       return;
     }
+    const guest = order.userId === null;
+    if (order.paymentOption === "CASH_ON_DELIVERY") {
+      res.status(409).json({ error: "Este pedido se paga en efectivo al recibirlo." });
+      return;
+    }
     if (order.status === "PENDING" && order.expiresAt && order.expiresAt < new Date()) {
       await cancelPendingOrder(order.id, "Venció el plazo para pagar");
-      res.status(409).json({ error: "Venció el plazo para pagar este pedido. Los productos volvieron a tu carrito." });
+      res.status(409).json({ error: guest ? "Venció el plazo para pagar este pedido." : "Venció el plazo para pagar este pedido. Los productos volvieron a tu carrito." });
       return;
     }
     if (order.status !== "PENDING") {
-      res.status(409).json({ error: notPayableMessage(order.status) });
+      res.status(409).json({ error: notPayableMessage(order.status, guest) });
       return;
     }
 
@@ -66,23 +90,21 @@ paymentsRouter.post(
 // Wompi los intentos abiertos (por si el webhook no ha llegado).
 paymentsRouter.post(
   "/wompi/sync/:orderId",
-  requireAuth,
+  orderAccess,
   catchAsync(async (req, res) => {
-    const isAdmin = req.user!.role === "ADMIN";
-    const order = await prisma.order.findFirst({
-      where: { id: req.params.orderId, ...(isAdmin ? {} : { userId: req.user!.userId }) },
-      select: { id: true },
-    });
+    const order = await prisma.order.findFirst({ where: ownOrder(req), select: { id: true, paymentOption: true } });
     if (!order) {
       res.status(404).json({ error: "Orden no encontrada" });
       return;
     }
 
     let pendingAtWompi = false;
-    try {
-      pendingAtWompi = (await syncOrderPayments(order.id)).pendingAtWompi;
-    } catch (err) {
-      console.error(`No se pudo consultar Wompi para el pedido ${order.id}:`, err);
+    if (order.paymentOption === "ONLINE") {
+      try {
+        pendingAtWompi = (await syncOrderPayments(order.id)).pendingAtWompi;
+      } catch (err) {
+        console.error(`No se pudo consultar Wompi para el pedido ${order.id}:`, err);
+      }
     }
 
     const current = await prisma.order.findUniqueOrThrow({
@@ -94,11 +116,14 @@ paymentsRouter.post(
         shippingCost: true,
         expiresAt: true,
         needsReview: true,
+        paymentOption: true,
+        codFee: true,
+        userId: true,
         payments: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true, paymentMethod: true, updatedAt: true } },
       },
     });
-    const { payments, ...rest } = current;
-    res.json({ ...rest, lastPayment: payments[0] ?? null, pendingAtWompi });
+    const { payments, userId, ...rest } = current;
+    res.json({ ...rest, guest: userId === null, lastPayment: payments[0] ?? null, pendingAtWompi });
   })
 );
 

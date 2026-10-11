@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CheckCircle2, Clock, Loader2, RefreshCw, XCircle } from "lucide-react";
+import { Banknote, CheckCircle2, Clock, Loader2, RefreshCw, XCircle } from "lucide-react";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useAuthHydrated, useAuthStore } from "@/store/auth.store";
 import { useCartStore } from "@/store/cart.store";
@@ -12,7 +12,7 @@ import { useLocale, useT } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 import { Button, buttonStyles } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
-import type { OrderStatus } from "@/lib/types";
+import type { OrderStatus, PaymentOption } from "@/lib/types";
 
 interface PaymentStatus {
   id: string;
@@ -21,6 +21,10 @@ interface PaymentStatus {
   shippingCost: number;
   expiresAt: string | null;
   needsReview: boolean;
+  paymentOption: PaymentOption;
+  codFee: number;
+  // Pedido hecho sin cuenta (se ve con el enlace del correo).
+  guest: boolean;
   lastPayment: { status: string; paymentMethod: string | null } | null;
   // Hay una transacción que el banco todavía está confirmando (p. ej. PSE).
   pendingAtWompi: boolean;
@@ -40,6 +44,8 @@ function formatCOP(amount: number) {
 function ResultContent() {
   const params = useSearchParams();
   const orderId = params.get("orderId");
+  // Compra como invitado: el enlace trae el token del pedido (?t=).
+  const orderToken = params.get("t");
   const token = useAuthStore((state) => state.token);
   const authHydrated = useAuthHydrated();
   const fetchCart = useCartStore((state) => state.fetchCart);
@@ -53,11 +59,14 @@ function ResultContent() {
   const [cancelling, setCancelling] = useState(false);
   const polls = useRef(0);
 
+  // Con el enlace del invitado se pide con su token; si no, con la sesión.
+  const access = orderToken ? { headers: { "X-Order-Token": orderToken } } : { token };
+
   const check = useCallback(async () => {
-    if (!token || !orderId) return null;
+    if ((!token && !orderToken) || !orderId) return null;
     setChecking(true);
     try {
-      const result = await apiFetch<PaymentStatus>(`/payments/wompi/sync/${orderId}`, { method: "POST", token });
+      const result = await apiFetch<PaymentStatus>(`/payments/wompi/sync/${orderId}`, { method: "POST", ...access });
       setData(result);
       setError(null);
       return result;
@@ -67,20 +76,22 @@ function ResultContent() {
     } finally {
       setChecking(false);
     }
-  }, [token, orderId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, orderId, orderToken]);
 
   useEffect(() => {
     // Al volver de Wompi la página carga de cero: hay que esperar a leer la sesión.
     if (!authHydrated) return;
-    if (!token) {
+    if (!token && !orderToken) {
       router.push("/login");
       return;
     }
     check();
-  }, [authHydrated, token, check, router]);
+  }, [authHydrated, token, orderToken, check, router]);
 
   useEffect(() => {
-    if (data?.status !== "PENDING") {
+    // Contra entrega no se consulta en Wompi: se paga al recibir.
+    if (data?.status !== "PENDING" || data.paymentOption === "CASH_ON_DELIVERY") {
       // Un pedido cancelado devuelve sus productos al carrito.
       if (data?.status === "CANCELLED") fetchCart();
       return;
@@ -94,10 +105,10 @@ function ResultContent() {
   }, [data, check, fetchCart]);
 
   async function cancelOrder() {
-    if (!token || !orderId) return;
+    if ((!token && !orderToken) || !orderId) return;
     setCancelling(true);
     try {
-      await apiFetch(`/orders/${orderId}/cancel`, { method: "POST", token });
+      await apiFetch(orderToken ? `/orders/guest/${orderId}/cancel` : `/orders/${orderId}/cancel`, { method: "POST", ...access });
       await check();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("paymentResult.cancelError"));
@@ -127,6 +138,34 @@ function ResultContent() {
     ? new Intl.DateTimeFormat(locale === "en" ? "en-US" : "es-CO", { hour: "numeric", minute: "2-digit" }).format(new Date(data.expiresAt))
     : null;
   const rejected = data.lastPayment && REJECTED_PAYMENTS.includes(data.lastPayment.status);
+  // A dónde ver el pedido: la cuenta, o la página del pedido con el enlace del invitado.
+  const orderLink = data.guest && orderToken ? `/pedido/${data.id}?t=${encodeURIComponent(orderToken)}` : "/account";
+  const orderLinkLabel = data.guest ? t("paymentResult.viewOrder") : t("paymentResult.myOrders");
+  const guestNote = data.guest ? <p className="mt-3 text-sm text-muted-foreground">{t("paymentResult.guestLinkSent")}</p> : null;
+
+  if (data.paymentOption === "CASH_ON_DELIVERY" && data.status !== "CANCELLED") {
+    return (
+      <div className="animate-aparecer text-center">
+        <span className="mx-auto flex size-20 items-center justify-center rounded-full bg-exito/12 text-exito">
+          <Banknote size={38} aria-hidden />
+        </span>
+        <h1 className="mt-5 text-3xl font-extrabold tracking-tight">{t("paymentResult.codTitle")}</h1>
+        <p className="mt-2 text-muted-foreground">
+          {data.status === "PENDING" ? t("paymentResult.codBody", { order: shortId }) : t(`orderStatus.${data.status}`)}
+        </p>
+        <p className="mt-4 rounded-2xl bg-surface-2 px-4 py-3 text-sm font-medium">{t("paymentResult.codAmount", { amount: formatCOP(data.totalAmount) })}</p>
+        {guestNote}
+        <div className="mt-8 flex flex-col justify-center gap-2 sm:flex-row">
+          <Link href={orderLink} className={buttonStyles({ variant: "dark", size: "lg" })}>
+            {orderLinkLabel}
+          </Link>
+          <Link href="/" className={buttonStyles({ variant: "secondary", size: "lg" })}>
+            {t("paymentResult.keepShopping")}
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (PAID_STATUSES.includes(data.status)) {
     return (
@@ -139,9 +178,10 @@ function ResultContent() {
         {data.needsReview ? (
           <p className="mt-4 rounded-2xl bg-aviso/10 px-4 py-3 text-sm font-medium text-aviso">{t("paymentResult.underReview")}</p>
         ) : null}
+        {guestNote}
         <div className="mt-8 flex flex-col justify-center gap-2 sm:flex-row">
-          <Link href="/account" className={buttonStyles({ variant: "dark", size: "lg" })}>
-            {t("paymentResult.myOrders")}
+          <Link href={orderLink} className={buttonStyles({ variant: "dark", size: "lg" })}>
+            {orderLinkLabel}
           </Link>
           <Link href="/" className={buttonStyles({ variant: "secondary", size: "lg" })}>
             {t("paymentResult.keepShopping")}
@@ -158,9 +198,11 @@ function ResultContent() {
           <XCircle size={40} aria-hidden />
         </span>
         <h1 className="mt-5 text-3xl font-extrabold tracking-tight">{t("paymentResult.cancelledTitle")}</h1>
-        <p className="mt-2 text-muted-foreground">{data.needsReview ? t("paymentResult.cancelledWithPayment") : t("paymentResult.cancelledBody")}</p>
-        <Link href="/cart" className={cn(buttonStyles({ variant: "dark", size: "lg" }), "mt-8")}>
-          {t("paymentResult.goToCart")}
+        <p className="mt-2 text-muted-foreground">
+          {data.needsReview ? t("paymentResult.cancelledWithPayment") : data.guest ? t("paymentResult.cancelledGuest") : t("paymentResult.cancelledBody")}
+        </p>
+        <Link href={data.guest ? "/" : "/cart"} className={cn(buttonStyles({ variant: "dark", size: "lg" }), "mt-8")}>
+          {data.guest ? t("paymentResult.keepShopping") : t("paymentResult.goToCart")}
         </Link>
       </div>
     );
@@ -209,7 +251,7 @@ function ResultContent() {
         // El widget de Wompi dibuja su propio botón; aquí solo se centra.
         <div className="mt-6 flex justify-center">
           {/* Un intento nuevo cada vez que el anterior se rechaza. */}
-          <WompiButton key={`${data.lastPayment?.status ?? "none"}`} orderId={data.id} />
+          <WompiButton key={`${data.lastPayment?.status ?? "none"}`} orderId={data.id} orderToken={orderToken} />
         </div>
       ) : null}
 

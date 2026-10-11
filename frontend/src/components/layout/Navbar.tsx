@@ -26,14 +26,17 @@ export function Navbar() {
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const fetchCart = useCartStore((state) => state.fetchCart);
+  const mergeGuestCart = useCartStore((state) => state.mergeGuestCart);
   const itemCount = useCartStore((state) => state.itemCount());
   const showToast = useToastStore((state) => state.show);
   const router = useRouter();
   const t = useT();
 
+  // Con sesión, lo que se agregó antes de ingresar pasa al carrito de la cuenta;
+  // sin sesión, se muestra el carrito guardado en el navegador.
   useEffect(() => {
-    if (user) fetchCart();
-  }, [user, fetchCart]);
+    (user ? mergeGuestCart() : fetchCart()).catch(() => {});
+  }, [user, fetchCart, mergeGuestCart]);
 
   function handleLogout() {
     logout();

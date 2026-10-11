@@ -5,6 +5,7 @@ import Image from "next/image";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useAuthStore } from "@/store/auth.store";
 import { useT } from "@/lib/i18n";
+import { CashOnDeliverySettings } from "@/components/CashOnDeliverySettings";
 import type { PaymentMethod } from "@/lib/types";
 
 export default function AdminPaymentMethodsPage() {
@@ -99,6 +100,7 @@ export default function AdminPaymentMethodsPage() {
 
   return (
     <div className="space-y-6">
+      <CashOnDeliverySettings />
       <p className="text-sm text-muted-foreground">{t("adminPaymentMethods.hint")}</p>
       {error ? <p className="text-sm text-peligro font-medium">{error}</p> : null}
 

@@ -18,6 +18,7 @@ import { socialLinksRouter } from "./routes/socialLinks.routes";
 import { uploadsRouter } from "./routes/uploads.routes";
 import { pqrsRouter } from "./routes/pqrs.routes";
 import { salesRouter } from "./routes/sales.routes";
+import { settingsRouter } from "./routes/settings.routes";
 import { oauthRouter } from "./routes/oauth.routes";
 import { reviewsRouter } from "./routes/reviews.routes";
 import { filesRouter } from "./routes/files.routes";
@@ -94,6 +95,7 @@ app.use("/social-links", socialLinksRouter);
 app.use("/uploads", uploadsRouter);
 app.use("/pqrs", pqrsRouter);
 app.use("/sales", salesRouter);
+app.use("/settings", settingsRouter);
 app.use("/store-reviews", reviewsRouter);
 app.use("/files", filesRouter);
 

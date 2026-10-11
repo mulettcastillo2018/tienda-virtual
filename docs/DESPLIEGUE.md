@@ -47,8 +47,12 @@ Una demo en línea, gratis, con pagos de prueba de Wompi:
 ## 3. Frontend (Vercel)
 
 1. En Vercel → *Add New* → *Project*, importa este repositorio y en *Root Directory* elige `frontend`. El nombre del proyecto define la dirección (`<nombre>.vercel.app`).
-2. Variable de entorno: `NEXT_PUBLIC_API_URL` = la dirección de Render.
+2. Variables de entorno:
+   - `NEXT_PUBLIC_API_URL` = la dirección de Render.
+   - `NEXT_PUBLIC_SITE_URL` = la dirección pública de la tienda, p. ej. `https://tienda-mulett.vercel.app`. Se usa en los enlaces que leen Google y las redes (canonical, imagen al compartir, `sitemap.xml`, `robots.txt`). Sin ella se toma el dominio de producción que informa Vercel.
 3. Despliega y, si la dirección final no es la que pusiste en `FRONTEND_URL`, corrígela en Render.
+
+El inicio y las fichas de producto se arman en el servidor y se guardan un minuto: si la API está dormida, la página espera hasta 8 segundos y luego se arma en el navegador como antes.
 
 ## 4. Conectar Wompi
 
@@ -58,6 +62,8 @@ En el panel de Wompi (sandbox) → *Desarrolladores* → *URL de eventos*: `http
 
 - **Google / Facebook**: agrega `https://<tu-api>/auth/google/callback` (y el de Facebook) como URI de redirección autorizada y pon las credenciales en Render.
 - **Correos a clientes**: verifica un dominio en Resend y cambia `STORE_FROM_EMAIL`.
+- **Enlaces de pedidos de invitado**: se firman con `JWT_SECRET`; si quieres una llave aparte, define `ORDER_LINK_SECRET` (cambiarla invalida los enlaces ya enviados). `GUEST_CHECKOUTS_PER_HOUR` limita las compras como invitado por conexión (20 por defecto).
+- **Pago contra entrega**: se configura en el panel (*Métodos de pago*): ciudades, valor máximo y recargo. La migración lo deja activo en Bogotá, Medellín, Cali, Barranquilla y Bucaramanga, hasta $500.000 y sin recargo.
 
 ## Archivos permanentes (Cloudflare R2)
 

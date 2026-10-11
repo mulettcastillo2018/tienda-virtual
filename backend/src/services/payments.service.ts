@@ -1,5 +1,6 @@
 import { prisma } from "../lib/prisma";
 import { sendOrderConfirmationEmail } from "./email.service";
+import { guestOrderUrl } from "../lib/orderAccess";
 import {
   cancelPendingOrder,
   findExpiredPendingOrders,
@@ -109,16 +110,25 @@ async function sendConfirmation(orderId: string, trx: WompiTransaction) {
   try {
     const order = await prisma.order.findUniqueOrThrow({
       where: { id: orderId },
-      include: { items: { include: { product: true } }, shippingAddress: true, user: true },
+      include: { items: { include: { product: true } }, user: true },
     });
+    const email = order.user?.email ?? order.guestEmail;
+    if (!email) return;
     await sendOrderConfirmationEmail(
-      order.user.email,
+      email,
       {
         id: order.id,
         totalAmount: order.totalAmount,
         shippingCost: order.shippingCost,
         items: order.items.map((item) => ({ productName: item.product.name, quantity: item.quantity, priceAtPurchase: item.priceAtPurchase })),
-        shippingAddress: order.shippingAddress,
+        // La dirección copiada al pedido (la guardada puede haber cambiado, y el invitado no tiene).
+        shippingAddress: {
+          fullName: order.shippingFullName ?? "",
+          addressLine1: order.shippingLine1 ?? "",
+          city: order.shippingCity ?? "",
+          state: order.shippingState ?? "",
+        },
+        trackingUrl: order.user ? null : guestOrderUrl(order.id),
       },
       { providerTransactionId: trx.id, paymentMethod: trx.payment_method_type ?? null }
     );

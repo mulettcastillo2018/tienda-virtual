@@ -56,26 +56,10 @@ export default function CartPage() {
     }
   }
 
+  // Con o sin sesión: sin sesión es el carrito guardado en el navegador.
   useEffect(() => {
-    if (!token) return;
-    fetchCart();
+    fetchCart().catch(() => {});
   }, [token, fetchCart]);
-
-  if (!token) {
-    return (
-      <Container width="narrow" className="py-16 sm:py-24">
-        <div className="flex flex-col items-center rounded-[2rem] border border-border bg-surface px-6 py-12 text-center shadow-suave">
-          <span className="flex size-16 items-center justify-center rounded-2xl bg-surface-2 text-foreground/80">
-            <ShoppingBag size={28} aria-hidden />
-          </span>
-          <p className="mt-5 max-w-xs text-muted-foreground">{t("cart.loginRequired")}</p>
-          <Link href="/login" className={cn(buttonStyles({ variant: "dark" }), "mt-6")}>
-            {t("cart.login")}
-          </Link>
-        </div>
-      </Container>
-    );
-  }
 
   const items = cart?.items ?? [];
   const subtotal = items.reduce((sum, item) => sum + getEffectivePrice(item.product) * item.quantity, 0);

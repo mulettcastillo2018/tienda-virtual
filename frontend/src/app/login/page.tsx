@@ -79,7 +79,9 @@ export default function LoginPage() {
       }
 
       setAuth(data.token, data.user, remember);
-      router.push("/");
+      // ?next=/checkout: vuelve a donde estaba (solo rutas de esta tienda).
+      const next = new URLSearchParams(window.location.search).get("next");
+      router.push(next && next.startsWith("/") && !next.startsWith("//") ? next : "/");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("login.unexpectedError"));
     } finally {

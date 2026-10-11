@@ -7,8 +7,13 @@ import { catchAsync } from "../lib/catchAsync";
 
 export const salesRouter = Router();
 
-// Una venta es un pedido pagado, esté en preparación, enviado o entregado.
-const SOLD = Prisma.sql`('PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED')`;
+// Una venta es un pedido pagado en línea (esté en preparación, enviado o
+// entregado) o uno contra entrega ya entregado, que es cuando se cobra.
+function sold(alias: string) {
+  const o = Prisma.raw(`"${alias}"`);
+  return Prisma.sql`((${o}."paymentOption" = 'ONLINE' AND ${o}."status"::text IN ('PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED'))
+    OR (${o}."paymentOption" = 'CASH_ON_DELIVERY' AND ${o}."status" = 'DELIVERED'))`;
+}
 // Los días se cuentan en hora de Colombia (UTC-5, sin horario de verano).
 const TZ_OFFSET_MS = 5 * 60 * 60_000;
 const DAY_MS = 24 * 60 * 60_000;
@@ -30,9 +35,9 @@ async function totals(from: Date, to: Date) {
     SELECT COUNT(DISTINCT o."id")::int AS orders,
            COALESCE(SUM(o."totalAmount"), 0)::float8 AS revenue,
            COALESCE((SELECT SUM(i."quantity") FROM "OrderItem" i JOIN "Order" x ON x."id" = i."orderId"
-                     WHERE x."status"::text IN ${SOLD} AND x."createdAt" >= ${from} AND x."createdAt" < ${to}), 0)::int AS units
+                     WHERE ${sold("x")} AND x."createdAt" >= ${from} AND x."createdAt" < ${to}), 0)::int AS units
     FROM "Order" o
-    WHERE o."status"::text IN ${SOLD} AND o."createdAt" >= ${from} AND o."createdAt" < ${to}`;
+    WHERE ${sold("o")} AND o."createdAt" >= ${from} AND o."createdAt" < ${to}`;
   return { ...row, avgTicket: row.orders ? Math.round(row.revenue / row.orders) : 0 };
 }
 
@@ -53,26 +58,27 @@ salesRouter.get(
     const from = localMidnight(now, days - 1);
     const previousFrom = new Date(from.getTime() - days * DAY_MS);
 
-    const [current, previous, daily, topProducts, byStatus, toShip] = await Promise.all([
+    const [current, previous, daily, topProducts, byStatus, toShip, toConfirm] = await Promise.all([
       totals(from, now),
       totals(previousFrom, from),
       prisma.$queryRaw<{ day: string; orders: number; revenue: number }[]>`
-        SELECT to_char(("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'America/Bogota', 'YYYY-MM-DD') AS day,
-               COUNT(*)::int AS orders, SUM("totalAmount")::float8 AS revenue
-        FROM "Order"
-        WHERE "status"::text IN ${SOLD} AND "createdAt" >= ${from}
+        SELECT to_char((o."createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'America/Bogota', 'YYYY-MM-DD') AS day,
+               COUNT(*)::int AS orders, SUM(o."totalAmount")::float8 AS revenue
+        FROM "Order" o
+        WHERE ${sold("o")} AND o."createdAt" >= ${from}
         GROUP BY day`,
       prisma.$queryRaw<{ id: string; name: string; units: number; revenue: number }[]>`
         SELECT p."id", p."name", SUM(i."quantity")::int AS units, SUM(i."quantity" * i."priceAtPurchase")::float8 AS revenue
         FROM "OrderItem" i
         JOIN "Order" o ON o."id" = i."orderId"
         JOIN "Product" p ON p."id" = i."productId"
-        WHERE o."status"::text IN ${SOLD} AND o."createdAt" >= ${from}
+        WHERE ${sold("o")} AND o."createdAt" >= ${from}
         GROUP BY p."id", p."name"
         ORDER BY units DESC, revenue DESC
         LIMIT 5`,
       prisma.order.groupBy({ by: ["status"], where: { createdAt: { gte: from } }, _count: { _all: true } }),
       prisma.order.count({ where: { status: { in: ["PAID", "PROCESSING"] } } }),
+      prisma.order.count({ where: { status: "PENDING", paymentOption: "CASH_ON_DELIVERY" } }),
     ]);
 
     // Todos los días del periodo, también los que no tuvieron ventas.
@@ -93,6 +99,7 @@ salesRouter.get(
       topProducts,
       byStatus: Object.fromEntries(byStatus.map((row) => [row.status, row._count._all])),
       toShip,
+      toConfirm,
     });
   })
 );

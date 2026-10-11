@@ -78,6 +78,27 @@ export interface AddressChangeLog {
   changedAt: string;
 }
 
+export type PaymentOption = "ONLINE" | "CASH_ON_DELIVERY";
+
+export type CodUnavailableReason = "DISABLED" | "CITY" | "AMOUNT";
+
+// Cotización antes de confirmar (POST /orders/quote).
+export interface OrderQuote {
+  subtotal: number;
+  shippingCost: number;
+  carrier: string;
+  total: number;
+  cod: { available: boolean; reason: CodUnavailableReason | null; fee: number; maxAmount: number; cities: string[] };
+}
+
+// Reglas del pago contra entrega (panel).
+export interface CodSettings {
+  codEnabled: boolean;
+  codCities: string[];
+  codMaxAmount: number;
+  codFee: number;
+}
+
 export type OrderStatus =
   | "PENDING"
   | "PAID"
@@ -100,7 +121,12 @@ export interface Order {
   needsReview?: boolean;
   reviewNote?: string | null;
   payments?: { status: string; paymentMethod: string | null; createdAt: string; providerTransactionId?: string | null }[];
-  user?: { id: string; email: string };
+  // null en las compras como invitado (entonces está guestEmail).
+  user?: { id: string; email: string } | null;
+  guestEmail?: string | null;
+  paymentOption: PaymentOption;
+  // Recargo por pago contra entrega (ya incluido en totalAmount).
+  codFee: number;
   items: {
     id: string;
     productId: string;
@@ -126,7 +152,7 @@ export interface AdminOrdersPage {
   total: number;
   page: number;
   pageSize: number;
-  counts: Partial<Record<OrderStatus | "ALL" | "REVIEW", number>>;
+  counts: Partial<Record<OrderStatus | "ALL" | "REVIEW" | "TO_CONFIRM", number>>;
 }
 
 export type UserRole = "ADMIN" | "JURIDICO" | "CUSTOMER";
@@ -194,6 +220,8 @@ export interface SalesSummary {
   topProducts: { id: string; name: string; units: number; revenue: number }[];
   byStatus: Partial<Record<OrderStatus, number>>;
   toShip: number;
+  // Contra entrega pendientes de confirmar con el cliente.
+  toConfirm: number;
 }
 
 export interface PqrsStats {

@@ -5,15 +5,17 @@ import { useT, useLocale } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 import type { Order, OrderStatus } from "@/lib/types";
 
-// Lo que pasa con un pedido después de pagarlo.
-const STEPS: OrderStatus[] = ["PAID", "PROCESSING", "SHIPPED", "DELIVERED"];
+// Lo que pasa con un pedido después de pagarlo; contra entrega empieza al
+// recibirlo y se confirma con el cliente antes de prepararlo.
+const ONLINE_STEPS: OrderStatus[] = ["PAID", "PROCESSING", "SHIPPED", "DELIVERED"];
+const COD_STEPS: OrderStatus[] = ["PENDING", "PROCESSING", "SHIPPED", "DELIVERED"];
 
 function formatDate(iso: string, locale: "es" | "en") {
   return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "es-CO", { dateStyle: "medium" }).format(new Date(iso));
 }
 
-/** En qué va un pedido pagado, con la fecha de cada paso. Un pedido sin pagar no muestra nada. */
-export function OrderProgress({ order }: { order: Pick<Order, "status" | "timeline"> }) {
+/** En qué va un pedido pagado (o contra entrega), con la fecha de cada paso. Un pedido sin pagar no muestra nada. */
+export function OrderProgress({ order }: { order: Pick<Order, "status" | "timeline" | "paymentOption"> }) {
   const t = useT();
   const locale = useLocale();
   const timeline = order.timeline ?? [];
@@ -28,7 +30,11 @@ export function OrderProgress({ order }: { order: Pick<Order, "status" | "timeli
     );
   }
 
+  const cod = order.paymentOption === "CASH_ON_DELIVERY";
+  const STEPS = cod ? COD_STEPS : ONLINE_STEPS;
   const current = STEPS.indexOf(order.status);
+  const label = (status: OrderStatus) =>
+    cod && status === "PENDING" ? t("account.stepReceived") : cod && status === "PROCESSING" ? t("account.stepConfirmed") : t(`orderStatus.${status}`);
   if (current === -1) return null;
 
   return (
@@ -59,7 +65,7 @@ export function OrderProgress({ order }: { order: Pick<Order, "status" | "timeli
               />
             </div>
             <p className={cn("mt-1.5 text-xs font-semibold", isCurrent ? "text-foreground" : "text-muted-foreground")}>
-              {t(`orderStatus.${status}`)}
+              {label(status)}
             </p>
             <p className="text-[11px] text-muted-foreground">{entry && reached ? formatDate(entry.at, locale) : "—"}</p>
           </li>

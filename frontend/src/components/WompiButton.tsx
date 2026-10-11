@@ -13,7 +13,7 @@ interface WompiInitiateResponse {
   publicKey: string;
 }
 
-export function WompiButton({ orderId }: { orderId: string }) {
+export function WompiButton({ orderId, orderToken = null }: { orderId: string; orderToken?: string | null }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
   const token = useAuthStore((state) => state.token);
@@ -23,12 +23,12 @@ export function WompiButton({ orderId }: { orderId: string }) {
     let cancelled = false;
 
     async function mountWidget() {
-      if (!token || !containerRef.current) return;
+      if ((!token && !orderToken) || !containerRef.current) return;
 
       try {
         const data = await apiFetch<WompiInitiateResponse>(`/payments/wompi/initiate/${orderId}`, {
           method: "POST",
-          token,
+          ...(orderToken ? { headers: { "X-Order-Token": orderToken } } : { token }),
         });
         if (cancelled || !containerRef.current) return;
 
@@ -51,7 +51,7 @@ export function WompiButton({ orderId }: { orderId: string }) {
         if (window.location.protocol === "https:") {
           script.setAttribute(
             "data-redirect-url",
-            `${window.location.origin}/checkout/result?orderId=${orderId}`
+            `${window.location.origin}/checkout/result?orderId=${orderId}${orderToken ? `&t=${encodeURIComponent(orderToken)}` : ""}`
           );
         }
         form.appendChild(script);
@@ -65,7 +65,7 @@ export function WompiButton({ orderId }: { orderId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [orderId, token]);
+  }, [orderId, token, orderToken]);
 
   if (error) return <p className="text-sm font-medium text-peligro">{error}</p>;
 

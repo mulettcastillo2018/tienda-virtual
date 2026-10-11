@@ -82,7 +82,8 @@ async function restoreCart(tx: Tx, orderId: string) {
     where: { id: orderId },
     select: { userId: true, items: { select: { productId: true, quantity: true, product: { select: { isActive: true } } } } },
   });
-  if (!order) return;
+  // Pedido de invitado: no hay carrito al cual devolver los productos.
+  if (!order?.userId) return;
   const cart = await tx.cart.upsert({ where: { userId: order.userId }, create: { userId: order.userId }, update: {} });
   for (const item of order.items) {
     if (!item.product.isActive) continue;
@@ -113,12 +114,14 @@ export async function cancelPendingOrder(
 }
 
 // Pedidos pendientes cuyo plazo para pagar ya pasó (los creados antes de
-// existir el plazo se miden desde su creación).
+// existir el plazo se miden desde su creación). Contra entrega no vence: se
+// paga al recibir.
 export async function findExpiredPendingOrders(now = new Date(), take = 50) {
   const legacyCutoff = new Date(now.getTime() - PAYMENT_WINDOW_MINUTES * 60_000);
   return prisma.order.findMany({
     where: {
       status: "PENDING",
+      paymentOption: "ONLINE",
       OR: [{ expiresAt: { lt: now } }, { expiresAt: null, createdAt: { lt: legacyCutoff } }],
     },
     select: { id: true, expiresAt: true, createdAt: true },

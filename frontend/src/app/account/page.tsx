@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
-import { ChevronDown, KeyRound, MapPin, MessageSquareText, Package, Pencil, Truck, UserRound, type LucideIcon } from "lucide-react";
+import { Banknote, ChevronDown, KeyRound, MapPin, MessageSquareText, Package, Pencil, Truck, UserRound, type LucideIcon } from "lucide-react";
 import { apiFetch, ApiError, uploadFile } from "@/lib/api";
 import { useAuthStore } from "@/store/auth.store";
 import { useToastStore } from "@/store/toast.store";
@@ -11,7 +11,7 @@ import { PqrsTimeline } from "@/components/PqrsTimeline";
 import { OrderProgress } from "@/components/OrderProgress";
 import { useT, useLocale } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
-import { ORDER_STATUS_TONE, PQRS_STATUS_TONE } from "@/lib/statusTones";
+import { ORDER_STATUS_TONE, orderStatusKey, PQRS_STATUS_TONE } from "@/lib/statusTones";
 import { Badge } from "@/components/ui/Badge";
 import { Button, buttonStyles } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
@@ -350,7 +350,7 @@ export default function AccountPage() {
                           </div>
                           <div className="flex items-center gap-3">
                             <span className="text-sm font-bold tabular-nums">{formatCOP(order.totalAmount)}</span>
-                            <Badge tone={ORDER_STATUS_TONE[order.status]}>{t(`orderStatus.${order.status}`)}</Badge>
+                            <Badge tone={ORDER_STATUS_TONE[order.status]}>{t(orderStatusKey(order))}</Badge>
                             <ChevronDown
                               size={18}
                               aria-hidden
@@ -379,9 +379,10 @@ export default function AccountPage() {
                             </ul>
                             <div className="mt-3 grid gap-1 border-t border-border pt-3 text-sm">
                               <p className="text-muted-foreground">{t("account.shippingCost", { amount: formatCOP(order.shippingCost) })}</p>
+                              {order.codFee > 0 ? <p className="text-muted-foreground">{t("account.codFee", { amount: formatCOP(order.codFee) })}</p> : null}
                               <p className="font-bold">{t("account.total", { amount: formatCOP(order.totalAmount) })}</p>
                             </div>
-                            {order.status !== "PENDING" ? (
+                            {order.status !== "PENDING" || order.paymentOption === "CASH_ON_DELIVERY" ? (
                               <div className="mt-4">
                                 <OrderProgress order={order} />
                               </div>
@@ -396,7 +397,13 @@ export default function AccountPage() {
                                 })}
                               </p>
                             ) : null}
-                            {order.status === "PENDING" ? (
+                            {order.paymentOption === "CASH_ON_DELIVERY" && order.status === "PENDING" ? (
+                              <p className="mt-3 flex items-start gap-2 rounded-2xl bg-surface-2 p-3 text-sm">
+                                <Banknote size={16} aria-hidden className="mt-0.5 shrink-0 text-muted-foreground" />
+                                {t("account.codPending", { amount: formatCOP(order.totalAmount) })}
+                              </p>
+                            ) : null}
+                            {order.paymentOption !== "CASH_ON_DELIVERY" && order.status === "PENDING" ? (
                               <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-aviso/10 p-3 text-sm">
                                 {order.expiresAt ? (
                                   <span className="font-medium text-aviso">

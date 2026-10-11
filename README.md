@@ -24,7 +24,8 @@ Tienda en línea completa para un comercio colombiano: catálogo, carrito, pagos
 
 **Para el cliente**
 - Catálogo con búsqueda, filtros por precio y marca, categorías con íconos y galería de 4 imágenes por producto.
-- Carrito y checkout por pasos: dirección, resumen y pago con Wompi (tarjeta, PSE, Nequi).
+- Compra sin crear cuenta: el carrito vive en el navegador, se paga con correo y dirección, y el pedido se sigue con un enlace firmado que llega al correo. Al iniciar sesión, el carrito pasa a la cuenta.
+- Checkout por pasos con el costo de envío antes de confirmar, y dos formas de pago: en línea con Wompi (tarjeta, PSE, Nequi) o contra entrega en las ciudades configuradas.
 - Plazo para pagar: si un pago se rechaza puede reintentar con otro medio; si no paga a tiempo, el pedido se cancela solo y los productos vuelven a su carrito.
 - Seguimiento del pedido paso a paso (pagado, en preparación, enviado, entregado) con la fecha de cada paso.
 - El carrito avisa si un producto se agotó, quedan menos unidades o se retiró de la tienda, y no deja pagar hasta ajustarlo.
@@ -37,12 +38,13 @@ Tienda en línea completa para un comercio colombiano: catálogo, carrito, pagos
 - Descuentos con duración: cada venta queda enlazada a la campaña de descuento que tenía, para poder explicar cualquier precio pasado.
 - Pedidos por estado, con búsqueda y paginación: preparación, despacho con guía, entrega, bitácora de quién hizo cada cambio y marca de revisión para pagos que requieren reembolso.
 - La dirección de envío se copia al pedido: si el cliente la cambia después, el despacho va a donde se pidió.
+- Pago contra entrega con reglas editables (ciudades, valor máximo y recargo): cada pedido se confirma con el cliente (con un mensaje de WhatsApp ya armado), el cobro queda registrado al entregarlo y, si no se concreta, el inventario vuelve.
 - Tablero de ventas de 7, 30 o 90 días: ventas, pedidos, ticket promedio y unidades comparados con el periodo anterior, ventas por día, lo más vendido y lo que falta despachar.
 - Área jurídica que responde las PQRS; el administrador solo lo hace si no hay nadie del área.
 
 ## Seguridad y calidad
 
-Después de construir la tienda, se hizo un [análisis técnico y de negocio](docs/analisis-2026-09-28.pdf) con una hoja de ruta por fases. Ya están corregidas las fases 0 a 4:
+Después de construir la tienda, se hizo un [análisis técnico y de negocio](docs/analisis-2026-09-28.pdf) con una hoja de ruta por fases. Ya están hechas las fases 0 a 5:
 
 | Fase | Qué se corrigió |
 |---|---|
@@ -51,8 +53,9 @@ Después de construir la tienda, se hizo un [análisis técnico y de negocio](do
 | 2 · Cuentas | Sesiones revocables al instante (desactivar, cambiar rol o contraseña), límites de intentos, OAuth con `state` y sin vinculación automática de cuentas, correos escapados, cabeceras de seguridad. |
 | 3 · Archivos | Tipo real de cada archivo por su contenido, adjuntos de PQRS privados con enlaces firmados, imágenes sin dominio fijo, integración continua. |
 | 4 · Operación | Estados de pedido completos (en preparación, entregado) con bitácora; carrito que valida producto activo, inventario y tope de 99 unidades; copia de la dirección en el pedido; índices en las llaves foráneas y paginación de pedidos, usuarios y PQRS; tablero de ventas. |
+| 5 · Crecimiento | Inicio y fichas renderizados en el servidor con metadatos, datos estructurados de producto, `sitemap.xml`, `robots.txt` e imagen para compartir; compra como invitado; pago contra entrega. |
 
-Las pruebas automáticas (163 comprobaciones) corren en cada cambio en GitHub Actions contra una base de datos nueva.
+Las pruebas automáticas (209 comprobaciones) corren en cada cambio en GitHub Actions contra una base de datos nueva.
 
 ## Arquitectura
 
@@ -130,7 +133,7 @@ npm run test:tipos    # tipos de las pruebas
 npm run db:verificar  # el esquema coincide con la base
 ```
 
-Suites: pagos con Wompi (webhooks firmados, rechazos, vencimiento, aprobación tardía, anulaciones), carrito (productos retirados, inventario, tope), operación de pedidos (pasos, línea de tiempo, copia de la dirección, filtros), listados del panel, tablero de ventas, seguridad de las cuentas (sesiones, límites, OAuth, tokens manipulados), archivos subidos (tipo real, enlaces firmados, imágenes) y almacenamiento en la nube contra un S3 simulado.
+Suites: pagos con Wompi (webhooks firmados, rechazos, vencimiento, aprobación tardía, anulaciones), carrito (productos retirados, inventario, tope), operación de pedidos (pasos, línea de tiempo, copia de la dirección, filtros), listados del panel, tablero de ventas, pago contra entrega (ciudades, tope, confirmación, cobro), compra como invitado (enlace firmado, pago, privacidad), seguridad de las cuentas (sesiones, límites, OAuth, tokens manipulados), archivos subidos (tipo real, enlaces firmados, imágenes) y almacenamiento en la nube contra un S3 simulado.
 
 ## Publicar una demo
 
@@ -140,11 +143,11 @@ La demo está publicada gratis con Neon (base de datos), Render (API, con `rende
 
 - **Fase 3**: demo publicada en [tienda-mulett.vercel.app](https://tienda-mulett.vercel.app) (2026-10-10).
 - **Fase 4** (2026-10-11): estados de pedido completos, validaciones del carrito, copia de la dirección en el pedido, paginación e índices, tablero de ventas.
-- **Fase 5**: SEO (páginas renderizadas en el servidor, metadatos, sitemap), compra como invitado, pago contra entrega.
+- **Fase 5** (2026-10-11): SEO (páginas renderizadas en el servidor, metadatos, sitemap), compra como invitado, pago contra entrega.
 - **Fase 6**: autorización de datos (Ley 1581), identificación del comerciante y facturación electrónica.
 
 ---
 
 ### English summary
 
-Complete Colombian e-commerce store: catalog, cart, Wompi payments with retries and automatic expiry, discount traceability, legally compliant after-sales (PQRS), admin panel, bilingual and dark mode. Built with Next.js, Express, PostgreSQL and Prisma by **directing an AI coding agent (Claude Code)**: I defined the product, requested a full technical audit and prioritized the fixes (idempotent payments, revocable sessions, secure OAuth, private signed file links); the agent implemented them with 163 automated checks running in CI. It also runs the day-to-day operation: order tracking, cart validation and a sales dashboard. Live demo (Wompi sandbox): [tienda-mulett.vercel.app](https://tienda-mulett.vercel.app).
+Complete Colombian e-commerce store: catalog, cart, Wompi payments with retries and automatic expiry, discount traceability, legally compliant after-sales (PQRS), admin panel, bilingual and dark mode. Built with Next.js, Express, PostgreSQL and Prisma by **directing an AI coding agent (Claude Code)**: I defined the product, requested a full technical audit and prioritized the fixes (idempotent payments, revocable sessions, secure OAuth, private signed file links); the agent implemented them with 209 automated checks running in CI. It also runs the day-to-day operation (order tracking, cart validation, sales dashboard) and growth features: server-rendered SEO pages, guest checkout and cash on delivery. Live demo (Wompi sandbox): [tienda-mulett.vercel.app](https://tienda-mulett.vercel.app).

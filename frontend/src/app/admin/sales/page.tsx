@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowDownRight, ArrowUpRight, Truck } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Banknote, Truck } from "lucide-react";
 import { usePagedList } from "@/lib/usePagedList";
 import { useT, useLocale } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
@@ -107,6 +107,17 @@ export default function AdminSalesPage() {
                 {t("adminSales.toShip", { n: data.toShip })}
               </p>
               <Link href="/admin" className={buttonStyles({ variant: "dark", size: "sm" })}>
+                {t("adminSales.goToOrders")}
+              </Link>
+            </div>
+          ) : null}
+          {data.toConfirm > 0 ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-surface-2 p-3 pl-4 text-sm">
+              <p className="flex items-center gap-2 font-medium">
+                <Banknote size={16} aria-hidden className="shrink-0" />
+                {t("adminSales.toConfirm", { n: data.toConfirm })}
+              </p>
+              <Link href="/admin" className={buttonStyles({ variant: "secondary", size: "sm" })}>
                 {t("adminSales.goToOrders")}
               </Link>
             </div>

@@ -57,6 +57,19 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   next();
 }
 
+// Para rutas que sirven con o sin sesión (p. ej. cotizar un pedido): el
+// usuario si trae un token vigente, null si no trae o ya no sirve.
+export async function getRequestUser(req: Request): Promise<JwtPayload | null> {
+  const token = bearerToken(req);
+  if (!token) return null;
+  try {
+    const payload = verifyToken(token);
+    return (await invalidReason(payload)) === null ? payload : null;
+  } catch {
+    return null;
+  }
+}
+
 // Para rutas públicas que muestran algo más a un administrador (p. ej.
 // productos desactivados): true solo con un token vigente de ADMIN.
 export async function isAdminRequest(req: Request): Promise<boolean> {

@@ -1,16 +1,16 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { AlertTriangle, History, MapPin } from "lucide-react";
+import { AlertTriangle, Banknote, History, MapPin, MessageCircle } from "lucide-react";
 import { apiFetch, ApiError } from "@/lib/api";
 import { usePagedList } from "@/lib/usePagedList";
 import { useAuthStore } from "@/store/auth.store";
 import { useToastStore } from "@/store/toast.store";
 import { useT, useLocale } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
-import { ORDER_STATUS_TONE } from "@/lib/statusTones";
+import { ORDER_STATUS_TONE, orderStatusKey } from "@/lib/statusTones";
 import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
+import { Button, buttonStyles } from "@/components/ui/Button";
 import { inputStyles } from "@/components/ui/Field";
 import { FilterTabs } from "@/components/ui/FilterTabs";
 import { Pagination } from "@/components/ui/Pagination";
@@ -19,7 +19,7 @@ import type { AdminOrdersPage, Order, OrderStatus } from "@/lib/types";
 
 const PAGE_SIZE = 20;
 const STATUSES: OrderStatus[] = ["PENDING", "PAID", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"];
-type Tab = "ALL" | "REVIEW" | OrderStatus;
+type Tab = "ALL" | "REVIEW" | "TO_CONFIRM" | OrderStatus;
 
 function formatCOP(amount: number) {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" }).format(amount);
@@ -30,10 +30,22 @@ function formatDateTime(iso: string, locale: "es" | "en") {
 }
 
 // Pasos que se marcan con un clic; el despacho pide transportadora y guía.
-const STEP_ACTIONS: Partial<Record<OrderStatus, { path: "process" | "deliver"; label: string; toast: string }>> = {
-  PAID: { path: "process", label: "adminOrders.markProcessing", toast: "adminOrders.processingToast" },
-  SHIPPED: { path: "deliver", label: "adminOrders.markDelivered", toast: "adminOrders.deliveredToast" },
-};
+// Contra entrega se confirma con el cliente antes de prepararlo.
+function stepFor(order: Order): { path: "confirm" | "process" | "deliver"; label: string; toast: string } | null {
+  if (order.paymentOption === "CASH_ON_DELIVERY" && order.status === "PENDING") {
+    return { path: "confirm", label: "adminOrders.confirmCod", toast: "adminOrders.confirmedToast" };
+  }
+  if (order.status === "PAID") return { path: "process", label: "adminOrders.markProcessing", toast: "adminOrders.processingToast" };
+  if (order.status === "SHIPPED") return { path: "deliver", label: "adminOrders.markDelivered", toast: "adminOrders.deliveredToast" };
+  return null;
+}
+
+// Enlace para escribirle al cliente por WhatsApp con el pedido ya resumido.
+function whatsappConfirmUrl(order: Order, message: string) {
+  const digits = (order.shippingAddress?.phone ?? "").replace(/\D/g, "");
+  const phone = digits.length === 10 ? `57${digits}` : digits;
+  return phone ? `https://wa.me/${phone}?text=${encodeURIComponent(message)}` : null;
+}
 
 export default function AdminOrdersPage() {
   const token = useAuthStore((state) => state.token);
@@ -46,6 +58,7 @@ export default function AdminOrdersPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [dispatching, setDispatching] = useState<string | null>(null);
   const [resolving, setResolving] = useState<string | null>(null);
+  const [failing, setFailing] = useState<string | null>(null);
   const [openHistory, setOpenHistory] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const list = usePagedList<AdminOrdersPage>(
@@ -77,7 +90,7 @@ export default function AdminOrdersPage() {
   }
 
   async function handleStep(order: Order) {
-    const step = STEP_ACTIONS[order.status];
+    const step = stepFor(order);
     if (!step) return;
     setError(null);
     setBusy(order.id);
@@ -116,6 +129,24 @@ export default function AdminOrdersPage() {
     }
   }
 
+  // Contra entrega que no se concretó: se cancela y el inventario vuelve.
+  async function handleCodFailed(orderId: string, event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const note = (event.currentTarget.elements.namedItem("note") as HTMLInputElement).value;
+    setError(null);
+    setBusy(orderId);
+    try {
+      await apiFetch(`/orders/${orderId}/cod-failed`, { method: "POST", token, body: JSON.stringify({ note }) });
+      setFailing(null);
+      showToast(t("adminOrders.codFailedToast"));
+      reload();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("adminOrders.stepError"));
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function handleResolve(orderId: string, event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const note = (event.currentTarget.elements.namedItem("note") as HTMLInputElement).value;
@@ -136,9 +167,12 @@ export default function AdminOrdersPage() {
   const data = list.data;
   const counts = data?.counts ?? {};
   const pendingReview = counts.REVIEW ?? 0;
+  const toConfirm = counts.TO_CONFIRM ?? 0;
   const orders = data?.items ?? [];
   const tabs: { value: Tab; label: string; count: number }[] = [
     { value: "ALL", label: t("adminOrders.tabAll"), count: counts.ALL ?? 0 },
+    // Contra entrega por confirmar con el cliente, solo cuando hay.
+    ...(toConfirm > 0 || tab === "TO_CONFIRM" ? [{ value: "TO_CONFIRM" as const, label: t("adminOrders.tabToConfirm"), count: toConfirm }] : []),
     // "Por revisar" solo aparece cuando hay algo que revisar.
     ...(pendingReview > 0 || tab === "REVIEW" ? [{ value: "REVIEW" as const, label: t("adminOrders.tabReview"), count: pendingReview }] : []),
     ...STATUSES.map((value) => ({ value, label: t(`orderStatus.${value}`), count: counts[value] ?? 0 })),
@@ -156,6 +190,16 @@ export default function AdminOrdersPage() {
         </button>
       ) : null}
 
+      {toConfirm > 0 && tab !== "TO_CONFIRM" ? (
+        <button
+          onClick={() => changeTab("TO_CONFIRM")}
+          className="flex w-full items-center gap-2 rounded-xl border border-border bg-surface-2 p-3 text-left text-sm text-foreground transition-colors duration-200 hover:bg-border/60"
+        >
+          <Banknote size={16} className="shrink-0" aria-hidden />
+          {t("adminOrders.toConfirmBanner", { n: toConfirm })}
+        </button>
+      ) : null}
+
       <FilterTabs options={tabs} value={tab} onChange={changeTab} />
       <SearchForm placeholder={t("adminOrders.searchPlaceholder")} onSearch={handleSearch} />
 
@@ -167,8 +211,23 @@ export default function AdminOrdersPage() {
 
       {orders.map((order) => {
         const lastPayment = order.payments?.[0];
-        const step = STEP_ACTIONS[order.status];
+        const step = stepFor(order);
         const canDispatch = order.status === "PAID" || order.status === "PROCESSING";
+        const cod = order.paymentOption === "CASH_ON_DELIVERY";
+        const codOpen = cod && ["PENDING", "PROCESSING", "SHIPPED"].includes(order.status);
+        const email = order.user?.email ?? order.guestEmail;
+        const whatsapp =
+          cod && order.status === "PENDING"
+            ? whatsappConfirmUrl(
+                order,
+                t("adminOrders.whatsappMessage", {
+                  name: order.shippingAddress?.fullName ?? "",
+                  order: order.id.slice(-8),
+                  amount: formatCOP(order.totalAmount),
+                  address: [order.shippingAddress?.addressLine1, order.shippingAddress?.city].filter(Boolean).join(", "),
+                })
+              )
+            : null;
         const address = order.shippingAddress;
         const historyOpen = openHistory.has(order.id);
         const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0);
@@ -182,9 +241,22 @@ export default function AdminOrdersPage() {
                 <p className="font-semibold">#{order.id}</p>
                 <p className="text-xs text-muted-foreground">{formatDateTime(order.createdAt, locale)}</p>
               </div>
-              <Badge tone={ORDER_STATUS_TONE[order.status]}>{t(`orderStatus.${order.status}`)}</Badge>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {cod ? (
+                  <Badge tone="accent">
+                    <Banknote aria-hidden />
+                    {t("adminOrders.cod")}
+                  </Badge>
+                ) : null}
+                <Badge tone={ORDER_STATUS_TONE[order.status]}>{t(orderStatusKey(order))}</Badge>
+              </div>
             </div>
-            {order.user?.email ? <p className="mt-2 text-sm [overflow-wrap:anywhere] text-muted-foreground">{order.user.email}</p> : null}
+            {email ? (
+              <p className="mt-2 text-sm [overflow-wrap:anywhere] text-muted-foreground">
+                {email}
+                {!order.user ? <span className="ml-1.5 text-xs font-semibold text-foreground">{t("adminOrders.guest")}</span> : null}
+              </p>
+            ) : null}
             {address?.addressLine1 ? (
               <p className="mt-1 flex items-start gap-1.5 text-sm text-muted-foreground">
                 <MapPin size={14} aria-hidden className="mt-0.5 shrink-0" />
@@ -200,6 +272,7 @@ export default function AdminOrdersPage() {
             <p className="mt-2 text-sm">
               {t("adminOrders.total", { amount: formatCOP(order.totalAmount) })}
               <span className="text-muted-foreground"> · {t("adminOrders.items", { n: itemCount })}</span>
+              {order.codFee > 0 ? <span className="text-muted-foreground"> · {t("adminOrders.codFeeIncluded", { amount: formatCOP(order.codFee) })}</span> : null}
             </p>
             {lastPayment ? (
               <p className="mt-1 text-xs text-muted-foreground">
@@ -259,8 +332,31 @@ export default function AdminOrdersPage() {
                   {t("common.cancel")}
                 </Button>
               </form>
-            ) : step || canDispatch ? (
+            ) : failing === order.id && codOpen ? (
+              <form onSubmit={(e) => handleCodFailed(order.id, e)} className="mt-3 flex flex-wrap gap-2">
+                <input
+                  name="note"
+                  required
+                  minLength={3}
+                  maxLength={200}
+                  placeholder={t("adminOrders.codFailedPlaceholder")}
+                  className={cn(inputStyles, "h-9 min-w-0 flex-1 px-2.5")}
+                />
+                <Button type="submit" variant="danger" size="sm" loading={busy === order.id}>
+                  {t("adminOrders.codFailedConfirm")}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setFailing(null)}>
+                  {t("common.cancel")}
+                </Button>
+              </form>
+            ) : step || canDispatch || codOpen ? (
               <div className="mt-3 flex flex-wrap gap-2">
+                {whatsapp ? (
+                  <a href={whatsapp} target="_blank" rel="noopener noreferrer" className={buttonStyles({ variant: "secondary", size: "sm" })}>
+                    <MessageCircle aria-hidden />
+                    {t("adminOrders.whatsappConfirm")}
+                  </a>
+                ) : null}
                 {step ? (
                   <Button variant="dark" size="sm" loading={busy === order.id} onClick={() => handleStep(order)}>
                     {t(step.label)}
@@ -269,6 +365,11 @@ export default function AdminOrdersPage() {
                 {canDispatch ? (
                   <Button variant="secondary" size="sm" onClick={() => setDispatching(order.id)}>
                     {t("adminOrders.markDispatched")}
+                  </Button>
+                ) : null}
+                {codOpen ? (
+                  <Button variant="ghost" size="sm" onClick={() => setFailing(order.id)} className="hover:text-peligro">
+                    {t("adminOrders.codFailed")}
                   </Button>
                 ) : null}
               </div>

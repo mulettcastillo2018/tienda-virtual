@@ -17,6 +17,13 @@ interface OrderForEmail {
     city: string;
     state: string;
   };
+  // Compras como invitado: enlace para ver el pedido sin cuenta.
+  trackingUrl?: string | null;
+}
+
+interface ReceivedOrderForEmail extends OrderForEmail {
+  codFee: number;
+  cashOnDelivery: boolean;
 }
 
 interface PaymentDetailsForEmail {
@@ -71,8 +78,8 @@ export async function sendOrderConfirmationEmail(
       <p>Envío: ${formatCOP(order.shippingCost)}</p>
       <p><strong>Total: ${formatCOP(order.totalAmount)}</strong></p>
       <p>Transacción Wompi: ${escapeHtml(payment.providerTransactionId ?? "-")} (${escapeHtml(payment.paymentMethod ?? "-")})</p>
-      <h3>Dirección de entrega</h3>
-      <p>${escapeHtml(order.shippingAddress.fullName)}<br />${escapeHtml(order.shippingAddress.addressLine1)}<br />${escapeHtml(order.shippingAddress.city)}, ${escapeHtml(order.shippingAddress.state)}</p>
+      ${addressHtml(order)}
+      ${trackingHtml(order.trackingUrl)}
     </div>
   `;
 
@@ -84,11 +91,57 @@ export async function sendOrderConfirmationEmail(
   });
 }
 
+function addressHtml(order: OrderForEmail) {
+  const a = order.shippingAddress;
+  return `<h3>Dirección de entrega</h3><p>${escapeHtml(a.fullName)}<br />${escapeHtml(a.addressLine1)}<br />${escapeHtml(a.city)}, ${escapeHtml(a.state)}</p>`;
+}
+
+function trackingHtml(url: string | null | undefined) {
+  return url ? `<p><a href="${escapeHtml(url)}">Ver mi pedido</a> (guarda este correo: es tu acceso al pedido).</p>` : "";
+}
+
+// Pedido recibido sin pago en línea todavía: contra entrega (se paga al
+// recibir) o invitado que aún no paga (lleva el enlace para pagar y seguirlo).
+export async function sendOrderReceivedEmail(toEmail: string, order: ReceivedOrderForEmail) {
+  if (isUndeliverable(toEmail)) return;
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.warn("RESEND_API_KEY no configurado — se omite el aviso de pedido recibido.");
+    return;
+  }
+  const resend = new Resend(apiKey);
+  const from = process.env.STORE_FROM_EMAIL ?? "Tienda Virtual <onboarding@resend.dev>";
+  const itemsHtml = order.items
+    .map(
+      (item) =>
+        `<tr><td style="padding:6px 0">${escapeHtml(item.productName)} × ${item.quantity}</td><td style="padding:6px 0;text-align:right">${formatCOP(item.priceAtPurchase * item.quantity)}</td></tr>`
+    )
+    .join("");
+  const intro = order.cashOnDelivery
+    ? "<p>Pagas en efectivo al recibir. Te contactaremos para confirmar el pedido antes de despacharlo.</p>"
+    : "<p>Tu pedido está reservado. Si todavía no lo pagaste, puedes hacerlo desde el enlace de abajo.</p>";
+  const html = `
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2>Recibimos tu pedido</h2>
+      <p>Pedido <strong>#${escapeHtml(order.id)}</strong>.</p>
+      ${intro}
+      <table style="width:100%; border-collapse:collapse;">${itemsHtml}</table>
+      <p>Envío: ${formatCOP(order.shippingCost)}</p>
+      ${order.codFee > 0 ? `<p>Recargo por pago contra entrega: ${formatCOP(order.codFee)}</p>` : ""}
+      <p><strong>Total${order.cashOnDelivery ? " a pagar al recibir" : ""}: ${formatCOP(order.totalAmount)}</strong></p>
+      ${addressHtml(order)}
+      ${trackingHtml(order.trackingUrl)}
+    </div>
+  `;
+  await resend.emails.send({ from, to: toEmail, subject: `Recibimos tu pedido #${order.id}`, html });
+}
+
 export async function sendShippingNotificationEmail(
   toEmail: string,
   orderId: string,
   carrier: string,
-  trackingNumber: string
+  trackingNumber: string,
+  orderUrl: string | null = null
 ) {
   if (isUndeliverable(toEmail)) return;
   const apiKey = process.env.RESEND_API_KEY;
@@ -104,7 +157,7 @@ export async function sendShippingNotificationEmail(
     from,
     to: toEmail,
     subject: `Tu pedido #${orderId} fue despachado`,
-    html: `<p>Tu pedido fue despachado con <strong>${escapeHtml(carrier)}</strong>.</p><p>Número de guía: <strong>${escapeHtml(trackingNumber)}</strong></p>`,
+    html: `<p>Tu pedido fue despachado con <strong>${escapeHtml(carrier)}</strong>.</p><p>Número de guía: <strong>${escapeHtml(trackingNumber)}</strong></p>${trackingHtml(orderUrl)}`,
   });
 }
 

@@ -160,3 +160,60 @@ cartRouter.delete(
     res.status(204).send();
   })
 );
+
+// --- Carrito de invitado: vive en el navegador hasta que compra o inicia sesión ---
+
+const guestItemsSchema = z.object({
+  items: z.array(z.object({ productId: z.string().min(1), quantity: z.number().int().min(1).max(MAX_PER_PRODUCT) })).max(50),
+});
+
+// El carrito del navegador con los productos al día y los mismos avisos que el
+// de una cuenta. Los productos que ya no existen se omiten.
+cartRouter.post(
+  "/guest",
+  catchAsync(async (req, res) => {
+    const parsed = guestItemsSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.flatten() });
+      return;
+    }
+    const products = await prisma.product.findMany({ where: { id: { in: parsed.data.items.map((item) => item.productId) } } });
+    const byId = new Map(products.map((product) => [product.id, product]));
+    const items = parsed.data.items.flatMap(({ productId, quantity }) => {
+      const product = byId.get(productId);
+      return product ? [{ id: productId, cartId: "guest", productId, quantity, product: withPublicImages(product), issue: cartIssue(product, quantity) }] : [];
+    });
+    res.json({ id: "guest", items });
+  })
+);
+
+const guestCheckSchema = z.object({
+  productId: z.string().min(1),
+  quantity: z.number().int().positive().max(MAX_PER_PRODUCT).default(1),
+  inCart: z.number().int().min(0).max(MAX_PER_PRODUCT).default(0),
+});
+
+// Antes de sumar al carrito del navegador: el producto sigue a la venta y
+// alcanza para lo que ya tiene más lo que agrega (las mismas reglas que /items).
+cartRouter.post(
+  "/guest/check",
+  catchAsync(async (req, res) => {
+    const parsed = guestCheckSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.flatten() });
+      return;
+    }
+    const { productId, quantity, inCart } = parsed.data;
+    const product = await prisma.product.findUnique({ where: { id: productId }, select: { name: true, stock: true, isActive: true } });
+    if (!product || !product.isActive) {
+      res.status(404).json({ error: UNAVAILABLE });
+      return;
+    }
+    const error = quantityError(product, inCart + quantity, inCart);
+    if (error) {
+      res.status(409).json({ error });
+      return;
+    }
+    res.json({ ok: true });
+  })
+);
