@@ -2,8 +2,10 @@ import type { MetadataRoute } from "next";
 import { serverGet, SITE_URL } from "@/lib/serverApi";
 import type { Product } from "@/lib/types";
 
-// Se vuelve a generar cada hora con los productos activos.
-export const revalidate = 3600;
+// Se arma en cada pedido con los productos guardados en caché una hora: si la
+// API no responde (el plan gratis se duerme), ese sitemap incompleto no queda
+// guardado, y el build no depende de que la API esté despierta.
+export const revalidate = 0;
 
 const MAX_PAGES = 50; // hasta 5.000 productos; más allá conviene partir el sitemap
 

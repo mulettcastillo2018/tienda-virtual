@@ -9,6 +9,9 @@ import type { Product } from "@/lib/types";
 // guarda un minuto: Google y los enlaces compartidos ven el producto completo.
 export const revalidate = 60;
 
+// Tipado explícito (no el PageProps generado), para que tsc funcione sin build previo.
+type ProductPageProps = { params: Promise<{ id: string }> };
+
 export async function generateStaticParams() {
   return [];
 }
@@ -20,7 +23,7 @@ async function loadProduct(id: string) {
   return result.ok ? result.data : null;
 }
 
-export async function generateMetadata({ params }: PageProps<"/products/[id]">): Promise<Metadata> {
+export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
   const { id } = await params;
   const product = await loadProduct(id);
   if (!product) return { title: STORE_NAME };
@@ -41,7 +44,7 @@ export async function generateMetadata({ params }: PageProps<"/products/[id]">):
   };
 }
 
-export default async function ProductPage({ params }: PageProps<"/products/[id]">) {
+export default async function ProductPage({ params }: ProductPageProps) {
   const { id } = await params;
   const product = await loadProduct(id);
 

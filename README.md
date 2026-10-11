@@ -55,7 +55,7 @@ Después de construir la tienda, se hizo un [análisis técnico y de negocio](do
 | 4 · Operación | Estados de pedido completos (en preparación, entregado) con bitácora; carrito que valida producto activo, inventario y tope de 99 unidades; copia de la dirección en el pedido; índices en las llaves foráneas y paginación de pedidos, usuarios y PQRS; tablero de ventas. |
 | 5 · Crecimiento | Inicio y fichas renderizados en el servidor con metadatos, datos estructurados de producto, `sitemap.xml`, `robots.txt` e imagen para compartir; compra como invitado; pago contra entrega. |
 
-Las pruebas automáticas (209 comprobaciones) corren en cada cambio en GitHub Actions contra una base de datos nueva.
+Las pruebas automáticas (205 comprobaciones) corren en cada cambio en GitHub Actions contra una base de datos nueva.
 
 ## Arquitectura
 
@@ -150,4 +150,4 @@ La demo está publicada gratis con Neon (base de datos), Render (API, con `rende
 
 ### English summary
 
-Complete Colombian e-commerce store: catalog, cart, Wompi payments with retries and automatic expiry, discount traceability, legally compliant after-sales (PQRS), admin panel, bilingual and dark mode. Built with Next.js, Express, PostgreSQL and Prisma by **directing an AI coding agent (Claude Code)**: I defined the product, requested a full technical audit and prioritized the fixes (idempotent payments, revocable sessions, secure OAuth, private signed file links); the agent implemented them with 209 automated checks running in CI. It also runs the day-to-day operation (order tracking, cart validation, sales dashboard) and growth features: server-rendered SEO pages, guest checkout and cash on delivery. Live demo (Wompi sandbox): [tienda-mulett.vercel.app](https://tienda-mulett.vercel.app).
+Complete Colombian e-commerce store: catalog, cart, Wompi payments with retries and automatic expiry, discount traceability, legally compliant after-sales (PQRS), admin panel, bilingual and dark mode. Built with Next.js, Express, PostgreSQL and Prisma by **directing an AI coding agent (Claude Code)**: I defined the product, requested a full technical audit and prioritized the fixes (idempotent payments, revocable sessions, secure OAuth, private signed file links); the agent implemented them with 205 automated checks running in CI. It also runs the day-to-day operation (order tracking, cart validation, sales dashboard) and growth features: server-rendered SEO pages, guest checkout and cash on delivery. Live demo (Wompi sandbox): [tienda-mulett.vercel.app](https://tienda-mulett.vercel.app).
