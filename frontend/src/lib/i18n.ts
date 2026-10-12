@@ -593,6 +593,16 @@ const es: Dict = {
     VOIDED: "anulado",
     ERROR: "con error",
   },
+  paymentMethods: {
+    CARD: "tarjeta",
+    NEQUI: "Nequi",
+    PSE: "PSE",
+    BANCOLOMBIA_TRANSFER: "transferencia Bancolombia",
+    BANCOLOMBIA_QR: "QR Bancolombia",
+    BANCOLOMBIA_COLLECT: "corresponsal Bancolombia",
+    DAVIPLATA: "Daviplata",
+    CASH: "efectivo",
+  },
   pqrsTimeline: {
     viewAttachment: "Ver adjunto",
     deadlineOverdue: "Plazo de respuesta vencido",
@@ -1486,6 +1496,16 @@ const en: Dict = {
     DECLINED: "declined",
     VOIDED: "voided",
     ERROR: "failed",
+  },
+  paymentMethods: {
+    CARD: "card",
+    NEQUI: "Nequi",
+    PSE: "PSE",
+    BANCOLOMBIA_TRANSFER: "Bancolombia transfer",
+    BANCOLOMBIA_QR: "Bancolombia QR",
+    BANCOLOMBIA_COLLECT: "Bancolombia agent",
+    DAVIPLATA: "Daviplata",
+    CASH: "cash",
   },
   pqrsTimeline: {
     viewAttachment: "View attachment",

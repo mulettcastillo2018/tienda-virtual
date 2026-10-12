@@ -15,6 +15,7 @@ import { inputStyles } from "@/components/ui/Field";
 import { FilterTabs } from "@/components/ui/FilterTabs";
 import { Pagination } from "@/components/ui/Pagination";
 import { SearchForm } from "@/components/ui/SearchForm";
+import { paymentMethodLabel } from "@/lib/paymentMethods";
 import type { AdminOrdersPage, Order, OrderStatus } from "@/lib/types";
 
 const PAGE_SIZE = 20;
@@ -281,7 +282,7 @@ export default function AdminOrdersPage() {
               <p className="mt-1 text-xs text-muted-foreground">
                 {t("adminOrders.lastPayment", {
                   status: t(`paymentStatus.${lastPayment.status}`),
-                  method: lastPayment.paymentMethod ?? "—",
+                  method: paymentMethodLabel(lastPayment.paymentMethod, t),
                   count: order.payments?.length ?? 0,
                 })}
               </p>

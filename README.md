@@ -16,9 +16,20 @@ Tienda en línea completa para un comercio colombiano: catálogo, carrito, pagos
     <td align="center"><img src="docs/capturas/inicio-oscuro.png" width="400" alt="Modo oscuro"><br><sub>Modo oscuro</sub></td>
   </tr>
   <tr>
-    <td align="center" colspan="2"><img src="docs/capturas/admin-productos.png" width="600" alt="Panel de administración"><br><sub>Panel de administración</sub></td>
+    <td align="center"><img src="docs/capturas/checkout-contraentrega.png" width="400" alt="Checkout con pago contra entrega"><br><sub>Checkout: pago en línea o contra entrega, con el IVA incluido</sub></td>
+    <td align="center"><img src="docs/capturas/admin-ventas.png" width="400" alt="Panel de ventas"><br><sub>Panel de ventas por periodo</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/capturas/resenas-producto.png" width="400" alt="Reseñas de producto"><br><sub>Reseñas solo de quien compró, con respuesta de la tienda</sub></td>
+    <td align="center"><img src="docs/capturas/cuenta-pedidos.png" width="400" alt="Pedidos en la cuenta del cliente"><br><sub>Seguimiento del pedido y retracto desde la cuenta</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/capturas/admin-devoluciones.png" width="400" alt="Devoluciones en el panel"><br><sub>Retractos y reversiones del pago (Ley 1480)</sub></td>
+    <td align="center"><img src="docs/capturas/admin-productos.png" width="400" alt="Panel de administración"><br><sub>Productos en el panel de administración</sub></td>
   </tr>
 </table>
+
+<sub>Las capturas usan datos de ejemplo: clientes, pedidos, reseñas y cifras de ventas ficticios.</sub>
 
 ## Qué hace
 

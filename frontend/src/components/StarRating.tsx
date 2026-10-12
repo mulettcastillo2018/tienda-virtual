@@ -9,7 +9,9 @@ export function StarRating({ value, size = 14, className, label }: { value: numb
         const fill = Math.max(0, Math.min(1, value - index));
         return (
           <span key={index} className="relative inline-flex" style={{ width: size, height: size }}>
-            <Star size={size} aria-hidden className="absolute inset-0 text-border-strong" strokeWidth={1.5} />
+            {/* La estrella vacía va rellena de gris: con solo el contorno, una estrella
+                llena al 30 % parecía un "1" suelto. */}
+            <Star size={size} aria-hidden className="absolute inset-0 fill-border-strong text-border-strong" strokeWidth={1.5} />
             {fill > 0 ? (
               <span className="absolute inset-0 overflow-hidden" style={{ width: `${fill * 100}%` }}>
                 <Star size={size} aria-hidden className="fill-aviso text-aviso" strokeWidth={1.5} />

@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { inputStyles } from "@/components/ui/Field";
 import { FilterTabs } from "@/components/ui/FilterTabs";
 import { Pagination } from "@/components/ui/Pagination";
+import { paymentMethodLabel } from "@/lib/paymentMethods";
 import type { AdminReturn, ReturnStatus } from "@/lib/types";
 
 const PAGE_SIZE = 20;
@@ -112,7 +113,7 @@ export default function AdminReturnsPage() {
               {formatCOP(request.order.totalAmount)} ·{" "}
               {request.order.paymentOption === "CASH_ON_DELIVERY"
                 ? t("adminOrders.cod")
-                : t("adminReturns.paidWith", { method: payment?.paymentMethod ?? "—", transaction: payment?.providerTransactionId ?? "—" })}
+                : t("adminReturns.paidWith", { method: paymentMethodLabel(payment?.paymentMethod, t), transaction: payment?.providerTransactionId ?? "—" })}
             </p>
             {request.cause ? <p className="mt-1 text-sm font-medium">{t(`afterSales.cause.${request.cause}`)}</p> : null}
             {request.customerNote ? <p className="mt-1 text-sm italic text-muted-foreground">“{request.customerNote}”</p> : null}

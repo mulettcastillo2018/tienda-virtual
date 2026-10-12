@@ -327,7 +327,7 @@ export default function CheckoutPage() {
               ) : null}
 
               {!loadingAddresses && addresses.length > 0 ? (
-                <fieldset className="grid gap-3">
+                <fieldset className="grid min-w-0 gap-3">
                   <legend className="mb-3 text-lg font-bold tracking-tight">{t("checkout.savedAddresses")}</legend>
                   {addresses.map((a) => (
                     <label
@@ -361,7 +361,7 @@ export default function CheckoutPage() {
                   ))}
 
                   {!showNewAddressForm ? (
-                    <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:items-center">
+                    <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:flex-wrap sm:items-center">
                       <Button size="lg" onClick={handleUseSelectedAddress} disabled={!selectedAddressId} className="sm:flex-1">
                         {t("checkout.continueWithAddress")}
                       </Button>
@@ -404,7 +404,7 @@ export default function CheckoutPage() {
                 </button>
               </div>
 
-              <fieldset className="grid gap-3">
+              <fieldset className="grid min-w-0 gap-3">
                 <legend className="mb-3 text-lg font-bold tracking-tight">{t("checkout.paymentMethod")}</legend>
                 <PaymentChoice
                   checked={paymentOption === "ONLINE"}
