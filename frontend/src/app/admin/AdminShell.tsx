@@ -14,6 +14,7 @@ import {
   RotateCcw,
   Share2,
   ShieldAlert,
+  Star,
   Tags,
   TrendingUp,
   Truck,
@@ -41,6 +42,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     { href: "/admin/payment-methods", label: t("adminNav.paymentMethods"), Icon: CreditCard },
     { href: "/admin/social-links", label: t("adminNav.socialLinks"), Icon: Share2 },
     { href: "/admin/pqrs", label: t("adminNav.pqrs"), Icon: MessageSquareText },
+    { href: "/admin/reviews", label: t("adminNav.reviews"), Icon: Star },
     { href: "/admin/contact", label: t("adminNav.contact"), Icon: Phone },
     { href: "/admin/users", label: t("adminNav.users"), Icon: Users },
   ];

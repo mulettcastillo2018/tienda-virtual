@@ -9,6 +9,7 @@ import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 import { magnetic } from "@/lib/magnetic";
 import { Badge } from "@/components/ui/Badge";
+import { StarRating } from "@/components/StarRating";
 import type { Product } from "@/lib/types";
 
 function formatCOP(amount: number) {
@@ -150,6 +151,12 @@ export function ProductCard({ product, addingId, addedId, onAddToCart }: Product
       <div className="flex flex-1 flex-col px-2 pt-3 pb-1.5">
         <h2 className="line-clamp-2 text-sm leading-snug font-semibold">{product.name}</h2>
         <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{product.description}</p>
+        {product.ratingCount ? (
+          <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
+            <StarRating value={product.ratingAverage ?? 0} size={11} />
+            <span className="tabular-nums">({product.ratingCount})</span>
+          </p>
+        ) : null}
 
         <div className="mt-auto pt-3">
           {discounted ? (

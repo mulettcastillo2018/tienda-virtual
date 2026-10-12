@@ -163,6 +163,9 @@ privacyRouter.post(
       await tx.order.updateMany({ where: { userId }, data: { shippingAddressId: null } });
       await tx.addressChangeLog.deleteMany({ where: { address: { userId } } });
       await tx.shippingAddress.deleteMany({ where: { userId } });
+      // Sus opiniones (pueden traer datos personales) se borran con la cuenta.
+      await tx.productReview.deleteMany({ where: { userId } });
+      await tx.storeReview.deleteMany({ where: { userId } });
       await tx.cartItem.deleteMany({ where: { cart: { userId } } });
       await tx.cart.deleteMany({ where: { userId } });
       await tx.passwordResetToken.deleteMany({ where: { userId } });

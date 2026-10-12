@@ -182,6 +182,7 @@ model User {
   storeReviews        StoreReview[]
   orderStatusChanges  OrderStatusLog[]
   consents            ConsentRecord[]
+  productReviews      ProductReview[]
 
   @@unique([provider, providerId])
 }
@@ -260,6 +261,7 @@ model Product {
   cartItems          CartItem[]
   orderItems         OrderItem[]
   discountLogs       ProductDiscountLog[]
+  reviews            ProductReview[]
 
   @@index([categoryId])
 }
@@ -377,6 +379,7 @@ model Order {
   returnRequests     ReturnRequest[]
   fiscalDocuments    FiscalDocument[]
   consents           ConsentRecord[]
+  productReviews     ProductReview[]
 
   @@index([userId])
   @@index([paymentOption, status])
@@ -604,5 +607,31 @@ model FiscalDocument {
 
   @@unique([type, prefix, number])
   @@index([status, nextAttemptAt])
+  @@index([orderId])
+}
+
+// Opinión de un comprador sobre un producto. Solo opina quien lo recibió (el
+// pedido lo prueba); la tienda responde en público y solo oculta contenido
+// ofensivo, con motivo: esconder las críticas sería publicidad engañosa.
+model ProductReview {
+  id           String    @id @default(cuid())
+  productId    String
+  product      Product   @relation(fields: [productId], references: [id])
+  userId       String
+  user         User      @relation(fields: [userId], references: [id])
+  orderId      String
+  order        Order     @relation(fields: [orderId], references: [id])
+  rating       Int
+  comment      String
+  storeReply   String?
+  repliedAt    DateTime?
+  hiddenAt     DateTime?
+  hiddenReason String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([productId, userId])
+  @@index([productId, hiddenAt])
+  @@index([userId])
   @@index([orderId])
 }

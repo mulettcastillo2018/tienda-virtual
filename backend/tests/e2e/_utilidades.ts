@@ -126,6 +126,7 @@ export async function limpiar(c: Creados) {
   await prisma.fiscalDocument.deleteMany({ where: { orderId: { in: pedidos } } });
   await prisma.pqrs.deleteMany({ where: { OR: [{ orderId: { in: pedidos } }, { userId: { in: c.usuarios } }] } });
   await prisma.storeReview.deleteMany({ where: { orderId: { in: pedidos } } });
+  await prisma.productReview.deleteMany({ where: { OR: [{ orderId: { in: pedidos } }, { userId: { in: c.usuarios } }, { productId: { in: c.productos } }] } });
   await prisma.payment.deleteMany({ where: { orderId: { in: pedidos } } });
   await prisma.orderItem.deleteMany({ where: { orderId: { in: pedidos } } });
   await prisma.orderStatusLog.deleteMany({ where: { OR: [{ orderId: { in: pedidos } }, { changedById: { in: c.usuarios } }] } });

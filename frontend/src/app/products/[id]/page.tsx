@@ -60,6 +60,9 @@ export default async function ProductPage({ params }: ProductPageProps) {
         sku: product.sku,
         ...(product.brand ? { brand: { "@type": "Brand", name: product.brand } } : {}),
         ...(product.category ? { category: product.category.name } : {}),
+        ...(product.ratingCount && product.ratingAverage
+          ? { aggregateRating: { "@type": "AggregateRating", ratingValue: product.ratingAverage, reviewCount: product.ratingCount, bestRating: 5, worstRating: 1 } }
+          : {}),
         ...(product.weightInGrams > 0 ? { weight: { "@type": "QuantitativeValue", value: product.weightInGrams, unitCode: "GRM" } } : {}),
         offers: {
           "@type": "Offer",

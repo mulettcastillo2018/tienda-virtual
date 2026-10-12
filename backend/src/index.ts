@@ -22,6 +22,7 @@ import { settingsRouter } from "./routes/settings.routes";
 import { privacyRouter } from "./routes/privacy.routes";
 import { returnsRouter } from "./routes/returns.routes";
 import { fiscalRouter } from "./routes/fiscal.routes";
+import { productReviewsRouter } from "./routes/productReviews.routes";
 import { oauthRouter } from "./routes/oauth.routes";
 import { reviewsRouter } from "./routes/reviews.routes";
 import { filesRouter } from "./routes/files.routes";
@@ -103,6 +104,7 @@ app.use("/settings", settingsRouter);
 app.use("/privacy", privacyRouter);
 app.use("/returns", returnsRouter);
 app.use("/fiscal", fiscalRouter);
+app.use("/product-reviews", productReviewsRouter);
 app.use("/store-reviews", reviewsRouter);
 app.use("/files", filesRouter);
 

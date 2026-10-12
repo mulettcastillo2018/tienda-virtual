@@ -8,7 +8,9 @@ import { apiFetch, ApiError } from "@/lib/api";
 import { useCartStore } from "@/store/cart.store";
 import { useToastStore } from "@/store/toast.store";
 import { getEffectivePrice, isDiscountActive } from "@/lib/pricing";
-import { useT } from "@/lib/i18n";
+import { useLocale, useT } from "@/lib/i18n";
+import { ProductReviews } from "@/components/ProductReviews";
+import { StarRating } from "@/components/StarRating";
 import { cn } from "@/lib/cn";
 import { magnetic } from "@/lib/magnetic";
 import { Badge } from "@/components/ui/Badge";
@@ -47,6 +49,7 @@ export function ProductDetail({ id, initialProduct }: { id: string; initialProdu
   const showToast = useToastStore((state) => state.show);
   const [missing, setMissing] = useState(false);
   const t = useT();
+  const locale = useLocale();
 
   useEffect(() => {
     apiFetch<Product>(`/products/${id}`)
@@ -199,6 +202,14 @@ export function ProductDetail({ id, initialProduct }: { id: string; initialProdu
           <div className="rounded-[2rem] border border-border bg-surface p-5 shadow-suave sm:p-8 lg:sticky lg:top-24">
             {eyebrow ? <p className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">{eyebrow}</p> : null}
             <h1 className="mt-2 text-[1.75rem] leading-tight font-extrabold tracking-tight text-balance sm:text-4xl">{product.name}</h1>
+            {product.ratingCount ? (
+              <a href="#resenas" className="mt-2 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+                <StarRating value={product.ratingAverage ?? 0} />
+                <span className="tabular-nums">
+                  {product.ratingAverage?.toLocaleString(locale === "en" ? "en-US" : "es-CO")} · {t("reviewsProduct.count", { n: product.ratingCount })}
+                </span>
+              </a>
+            ) : null}
 
             {discounted ? (
               <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -275,6 +286,7 @@ export function ProductDetail({ id, initialProduct }: { id: string; initialProdu
               </dl>
             </section>
           ) : null}
+          <ProductReviews productId={product.id} />
         </div>
       </div>
 

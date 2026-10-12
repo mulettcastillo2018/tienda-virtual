@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { requireAuth, requireAdmin, isAdminRequest } from "../middleware/auth.middleware";
+import { withRatings } from "../services/productReviews.service";
 import { catchAsync } from "../lib/catchAsync";
 import { toStoredImage, withPublicImages } from "../services/storage";
 
@@ -55,7 +56,7 @@ productsRouter.get(
       prisma.product.count({ where }),
     ]);
 
-    res.json({ items: items.map(withPublicImages), total, page, pageSize });
+    res.json({ items: await withRatings(items.map(withPublicImages)), total, page, pageSize });
   })
 );
 
@@ -96,7 +97,8 @@ productsRouter.get(
       res.status(404).json({ error: "Producto no encontrado" });
       return;
     }
-    res.json(withPublicImages(product));
+    const [withRating] = await withRatings([withPublicImages(product)]);
+    res.json(withRating);
   })
 );
 

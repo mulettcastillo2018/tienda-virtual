@@ -24,6 +24,9 @@ export interface Product {
   sku: string;
   // IVA incluido en el precio: 19, 5 o 0 (excluido).
   taxRate: number;
+  // Promedio de las reseñas visibles (null sin reseñas) y cuántas hay.
+  ratingAverage?: number | null;
+  ratingCount?: number;
   isActive: boolean;
   createdAt: string;
 }
@@ -372,4 +375,35 @@ export interface FiscalDocumentRow {
   attempts: number;
   createdAt: string;
   cancels: { prefix: string; number: number } | null;
+}
+
+// --- Reseñas de producto ---
+
+export interface ProductReviewItem {
+  id: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+  updatedAt: string;
+  author: string;
+  storeReply: string | null;
+  repliedAt: string | null;
+}
+
+export interface ProductReviewsPage {
+  items: ProductReviewItem[];
+  total: number;
+  summary: { average: number | null; count: number; distribution: Record<number, number> };
+}
+
+export interface AdminProductReview {
+  id: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+  storeReply: string | null;
+  hiddenAt: string | null;
+  hiddenReason: string | null;
+  product: { id: string; name: string };
+  user: { email: string };
 }

@@ -377,6 +377,11 @@ export default function AccountPage() {
                                   <span className="text-muted-foreground">
                                     <span className="font-semibold text-foreground tabular-nums">{item.quantity}×</span>{" "}
                                     {item.product?.name ?? t("account.unnamedProduct")}
+                                    {order.status === "DELIVERED" && item.product ? (
+                                      <Link href={`/products/${item.productId}#resenas`} className="ml-2 text-xs font-semibold text-foreground underline underline-offset-4">
+                                        {t("account.rate")}
+                                      </Link>
+                                    ) : null}
                                     {item.discountLog ? (
                                       <span className="ml-1 text-xs text-accent">
                                         {t("account.includedDiscount", { percent: item.discountLog.discountPercentage })}
