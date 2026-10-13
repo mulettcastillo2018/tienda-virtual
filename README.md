@@ -43,7 +43,7 @@ Tienda en línea completa para un comercio colombiano: catálogo, carrito, pagos
 - Ofertas relámpago, reseñas de la tienda y de cada producto (solo de quien lo compró y recibió, con la respuesta de la tienda), inicio de sesión con Google o Facebook, recuperación de contraseña.
 - PQRS (peticiones, quejas, reclamos y sugerencias) con plazo legal de 15 días hábiles, línea de tiempo y adjuntos privados.
 - Retracto (5 días hábiles tras la entrega) y reversión del pago desde el propio pedido, con su estado a la vista; factura electrónica de cada compra.
-- Sus datos personales: autorización con constancia (Ley 1581), ofertas aparte, descarga de sus datos y eliminación de la cuenta.
+- Sus datos personales: autorización con constancia (Ley 1581), ofertas aparte (con baja desde cualquier correo), descarga de sus datos y eliminación de la cuenta.
 - Español e inglés, modo claro y oscuro.
 
 **Para la tienda**
@@ -57,6 +57,7 @@ Tienda en línea completa para un comercio colombiano: catálogo, carrito, pagos
 - Devoluciones: aprobar o rechazar, recibir el producto (vuelve al inventario) y registrar el reembolso; el pedido queda reembolsado y la factura se anula con una nota crédito.
 - Factura electrónica de la DIAN por medio de Alanube: numeración con resolución, IVA por producto (19 %, 5 % o excluido), factura a nombre del cliente o a consumidor final, envío con reintentos y aviso de numeración.
 - Identificación del comerciante (razón social y NIT) en toda la tienda.
+- Recordatorio de carrito abandonado: un correo por cada vez que el carrito queda quieto 24 horas (hasta una semana), solo a quien autorizó las ofertas y solo con lo que sigue disponible; cada correo trae la baja, también de un clic.
 
 ## Seguridad y calidad
 
@@ -72,7 +73,7 @@ Después de construir la tienda, se hizo un [análisis técnico y de negocio](do
 | 5 · Crecimiento | Inicio y fichas renderizados en el servidor con metadatos, datos estructurados de producto, `sitemap.xml`, `robots.txt` e imagen para compartir; compra como invitado; pago contra entrega. |
 | 6 · Formalización | Política de datos y autorización con constancia (Ley 1581), supresión de cuentas; razón social y NIT visibles (Ley 1480, art. 50); retracto y reversión del pago con plazos en días hábiles con festivos de Colombia (arts. 47 y 51); IVA por producto; factura electrónica y nota crédito con Alanube. |
 
-Las pruebas automáticas (293 comprobaciones) corren en cada cambio en GitHub Actions contra una base de datos nueva.
+Las pruebas automáticas (309 comprobaciones) corren en cada cambio en GitHub Actions contra una base de datos nueva.
 
 ## Arquitectura
 
@@ -150,7 +151,7 @@ npm run test:tipos    # tipos de las pruebas
 npm run db:verificar  # el esquema coincide con la base
 ```
 
-Suites: pagos con Wompi (webhooks firmados, rechazos, vencimiento, aprobación tardía, anulaciones), carrito (productos retirados, inventario, tope), operación de pedidos (pasos, línea de tiempo, copia de la dirección, filtros), listados del panel, tablero de ventas, pago contra entrega (ciudades, tope, confirmación, cobro), compra como invitado (enlace firmado, pago, privacidad), datos personales y comerciante (autorización, supresión, NIT, IVA), retracto y reversión (plazos, inventario, reembolso), factura electrónica contra un Alanube simulado (contenido, CUFE, nota crédito), reseñas de producto (compra verificada, respuesta, moderación con motivo), seguridad de las cuentas (sesiones, límites, OAuth, tokens manipulados), archivos subidos (tipo real, enlaces firmados, imágenes) y almacenamiento en la nube contra un S3 simulado.
+Suites: pagos con Wompi (webhooks firmados, rechazos, vencimiento, aprobación tardía, anulaciones), carrito (productos retirados, inventario, tope), operación de pedidos (pasos, línea de tiempo, copia de la dirección, filtros), listados del panel, tablero de ventas, pago contra entrega (ciudades, tope, confirmación, cobro), compra como invitado (enlace firmado, pago, privacidad), datos personales y comerciante (autorización, supresión, NIT, IVA), retracto y reversión (plazos, inventario, reembolso), factura electrónica contra un Alanube simulado (contenido, CUFE, nota crédito), reseñas de producto (compra verificada, respuesta, moderación con motivo), recordatorio de carrito (permiso, una vez por pausa, baja firmada), seguridad de las cuentas (sesiones, límites, OAuth, tokens manipulados), archivos subidos (tipo real, enlaces firmados, imágenes) y almacenamiento en la nube contra un S3 simulado.
 
 ## Publicar una demo
 
@@ -163,10 +164,11 @@ La demo está publicada gratis con Neon (base de datos), Render (API, con `rende
 - **Fase 5** (2026-10-11): SEO (páginas renderizadas en el servidor, metadatos, sitemap), compra como invitado, pago contra entrega.
 - **Fase 6** (2026-10-12): autorización de datos (Ley 1581), identificación del comerciante, retracto y reversión, IVA por producto y factura electrónica.
 - **Reseñas de producto** (2026-10-12): solo compradores que recibieron el producto, promedio en el catálogo y la ficha (también en los datos estructurados para Google), respuesta pública de la tienda y moderación solo con motivo.
+- **Recordatorio de carrito abandonado** (2026-10-13): con permiso para ofertas y la política vigente (versión 2026-10-13, que lo menciona), una vez por pausa y con baja firmada. Con esto quedan hechos todos los puntos del análisis. Los correos salen de verdad cuando Resend tenga un dominio propio verificado.
 - **Para vender de verdad** (decisiones del dueño, no código): razón social y NIT reales, revisión de los textos legales por un abogado, cuenta y token de Alanube con la habilitación de la DIAN, y llaves de producción de Wompi.
 
 ---
 
 ### English summary
 
-Complete Colombian e-commerce store: catalog, cart, Wompi payments with retries and automatic expiry, discount traceability, legally compliant after-sales (PQRS), admin panel, bilingual and dark mode. Built with Next.js, Express, PostgreSQL and Prisma by **directing an AI coding agent (Claude Code)**: I defined the product, requested a full technical audit and prioritized the fixes (idempotent payments, revocable sessions, secure OAuth, private signed file links); the agent implemented them with 293 automated checks running in CI. It also runs the day-to-day operation (order tracking, cart validation, sales dashboard), growth features (server-rendered SEO pages, guest checkout, cash on delivery) and Colombian compliance: data-protection consent and erasure (Law 1581), merchant identification, withdrawal and payment reversal (Law 1480) and DIAN electronic invoicing through Alanube. Live demo (Wompi sandbox): [tienda-mulett.vercel.app](https://tienda-mulett.vercel.app).
+Complete Colombian e-commerce store: catalog, cart, Wompi payments with retries and automatic expiry, discount traceability, legally compliant after-sales (PQRS), admin panel, bilingual and dark mode. Built with Next.js, Express, PostgreSQL and Prisma by **directing an AI coding agent (Claude Code)**: I defined the product, requested a full technical audit and prioritized the fixes (idempotent payments, revocable sessions, secure OAuth, private signed file links); the agent implemented them with 309 automated checks running in CI. It also runs the day-to-day operation (order tracking, cart validation, sales dashboard), growth features (server-rendered SEO pages, guest checkout, cash on delivery) and Colombian compliance: data-protection consent and erasure (Law 1581), merchant identification, withdrawal and payment reversal (Law 1480) DIAN electronic invoicing through Alanube, verified-purchase product reviews and consent-based abandoned-cart reminders. Live demo (Wompi sandbox): [tienda-mulett.vercel.app](https://tienda-mulett.vercel.app).

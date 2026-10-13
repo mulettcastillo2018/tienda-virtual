@@ -4,6 +4,7 @@ import { prisma } from "../lib/prisma";
 import { requireAuth } from "../middleware/auth.middleware";
 import { catchAsync } from "../lib/catchAsync";
 import { withPublicImages } from "../services/storage";
+import { touchCart } from "../services/cartReminder.service";
 
 export const cartRouter = Router();
 
@@ -97,6 +98,7 @@ cartRouter.post(
       create: { cartId: cart.id, productId, quantity },
       update: { quantity: { increment: quantity } },
     });
+    await touchCart(prisma, cart.id);
     res.status(201).json(item);
   })
 );
@@ -133,6 +135,7 @@ cartRouter.put(
       }
     }
     const item = await prisma.cartItem.update({ where, data: { quantity: parsed.data.quantity } });
+    await touchCart(prisma, cart.id);
     res.json(item);
   })
 );
@@ -143,6 +146,7 @@ cartRouter.delete(
   catchAsync(async (req, res) => {
     const cart = await getOrCreateCart(req.user!.userId);
     await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
+    await touchCart(prisma, cart.id);
     res.status(204).send();
   })
 );
@@ -157,6 +161,7 @@ cartRouter.delete(
       res.status(404).json({ error: NOT_IN_CART });
       return;
     }
+    await touchCart(prisma, cart.id);
     res.status(204).send();
   })
 );

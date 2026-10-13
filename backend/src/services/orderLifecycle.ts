@@ -84,7 +84,11 @@ async function restoreCart(tx: Tx, orderId: string) {
   });
   // Pedido de invitado: no hay carrito al cual devolver los productos.
   if (!order?.userId) return;
-  const cart = await tx.cart.upsert({ where: { userId: order.userId }, create: { userId: order.userId }, update: {} });
+  const cart = await tx.cart.upsert({
+    where: { userId: order.userId },
+    create: { userId: order.userId },
+    update: { lastActivityAt: new Date(), reminderSentAt: null },
+  });
   for (const item of order.items) {
     if (!item.product.isActive) continue;
     await tx.cartItem.upsert({

@@ -7,6 +7,7 @@ import { catchAsync } from "../lib/catchAsync";
 import { clientIp } from "../lib/rateLimit";
 import { forgetUserState } from "../lib/userState";
 import { PRIVACY_POLICY_VERSION, recordConsent } from "../lib/privacy";
+import { isValidUnsubscribeToken } from "../services/cartReminder.service";
 
 // Derechos del titular de los datos (Ley 1581 de 2012): conocer qué se
 // tiene, autorizar o revocar, descargar y suprimir.
@@ -74,6 +75,28 @@ privacyRouter.put(
       });
     }
     res.json({ marketingOptIn: parsed.data.optIn });
+  })
+);
+
+// Baja de las ofertas y recordatorios desde el enlace del correo, sin iniciar
+// sesión (lo autoriza la firma del enlace). También recibe la baja de un clic
+// de los clientes de correo (RFC 8058): un POST con los datos en la URL.
+privacyRouter.post(
+  "/unsubscribe",
+  catchAsync(async (req, res) => {
+    const userId = typeof req.query.u === "string" ? req.query.u : "";
+    if (!userId || !isValidUnsubscribeToken(userId, req.query.t)) {
+      res.status(400).json({ error: "El enlace para darte de baja no es válido." });
+      return;
+    }
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, marketingOptIn: true } });
+    if (user?.marketingOptIn) {
+      await prisma.$transaction(async (tx) => {
+        await tx.user.update({ where: { id: userId }, data: { marketingOptIn: false } });
+        await recordConsent(tx, { userId, email: user.email, purpose: "MARKETING", granted: false, channel: "CORREO", ipAddress: clientIp(req) });
+      });
+    }
+    res.json({ ok: true });
   })
 );
 

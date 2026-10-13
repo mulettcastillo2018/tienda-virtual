@@ -7,7 +7,7 @@ import { useLocale } from "@/lib/i18n";
 import type { ContactInfo } from "@/lib/types";
 
 // Versión de la política: la misma que acepta el cliente (backend: PRIVACY_POLICY_VERSION).
-const VERSION = "2026-10-12";
+const VERSION = "2026-10-13";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -57,7 +57,7 @@ export default function PrivacidadPage() {
               <p>Identification and contact data (name, email, phone, delivery address), the ID document you give us for an invoice in your name, your orders and requests (PQRS, returns) and the attachments you upload. We never receive or store card data: payments are processed by Wompi.</p>
             </Section>
             <Section title="3. Purposes">
-              <p>To manage your account and purchases, payments, shipping, electronic invoicing, warranties, returns and requests, to keep the store secure and to meet legal obligations. Only if you authorize it separately: to send you offers and news, which you can stop at any time.</p>
+              <p>To manage your account and purchases, payments, shipping, electronic invoicing, warranties, returns and requests, to keep the store secure and to meet legal obligations. Only if you authorize it separately: to send you offers, news and reminders about the products you leave in your cart, which you can stop at any time (every email includes the link to do it).</p>
             </Section>
             <Section title="4. Your rights">
               <p>As the data owner you can know, update and correct your data; ask for proof of your authorization; be informed about how it is used; revoke the authorization or ask for deletion when there is no legal duty to keep it; access it free of charge; and file complaints with the Superintendence of Industry and Commerce (SIC).</p>
@@ -81,7 +81,7 @@ export default function PrivacidadPage() {
               <p>Datos de identificación y contacto (nombre, correo, teléfono, dirección de entrega), el documento que nos des para facturar a tu nombre, tus pedidos y solicitudes (PQRS, devoluciones) y los archivos que adjuntes. Nunca recibimos ni guardamos datos de tarjetas: los pagos los procesa Wompi.</p>
             </Section>
             <Section title="3. Para qué los usamos">
-              <p>Gestionar tu cuenta y tus compras, pagos, envíos, factura electrónica, garantías, devoluciones y solicitudes, mantener la tienda segura y cumplir obligaciones legales. Solo si lo autorizas aparte: enviarte ofertas y novedades, lo que puedes suspender cuando quieras.</p>
+              <p>Gestionar tu cuenta y tus compras, pagos, envíos, factura electrónica, garantías, devoluciones y solicitudes, mantener la tienda segura y cumplir obligaciones legales. Solo si lo autorizas aparte: enviarte ofertas, novedades y recordatorios de los productos que dejes en tu carrito, lo que puedes suspender cuando quieras (cada correo trae el enlace para hacerlo).</p>
             </Section>
             <Section title="4. Tus derechos (Ley 1581 de 2012, art. 8)">
               <p>Como titular puedes conocer, actualizar y rectificar tus datos; pedir prueba de tu autorización; ser informado del uso que les damos; revocar la autorización o pedir que los suprimamos cuando no haya un deber legal de conservarlos; acceder a ellos gratis; y presentar quejas ante la Superintendencia de Industria y Comercio (SIC).</p>

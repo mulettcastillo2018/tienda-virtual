@@ -28,6 +28,7 @@ import { reviewsRouter } from "./routes/reviews.routes";
 import { filesRouter } from "./routes/files.routes";
 import { startOrderExpiryJob } from "./services/payments.service";
 import { startFiscalJob } from "./services/fiscal/fiscal.service";
+import { startCartReminderJob } from "./services/cartReminder.service";
 import { UPLOADS_DIR } from "./services/storage";
 import { checkEnvironment } from "./lib/env";
 import { prisma } from "./lib/prisma";
@@ -126,4 +127,6 @@ app.listen(port, () => {
   // Cancela los pedidos que no se pagaron a tiempo y libera su inventario.
   startOrderExpiryJob();
   startFiscalJob();
+  // Recuerda los carritos quietos a quien autorizó las ofertas.
+  startCartReminderJob();
 });

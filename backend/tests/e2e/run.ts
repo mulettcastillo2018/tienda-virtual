@@ -17,6 +17,7 @@ import { probarPrivacidad } from "./privacidad.e2e";
 import { probarDevoluciones } from "./devoluciones.e2e";
 import { probarFacturacion } from "./facturacion.e2e";
 import { probarResenas } from "./resenas.e2e";
+import { probarRecordatorioCarrito } from "./recordatorio.e2e";
 
 const PRUEBAS: [string, () => Promise<void>][] = [
   ["Pagos con Wompi", probarPagos],
@@ -30,6 +31,7 @@ const PRUEBAS: [string, () => Promise<void>][] = [
   ["Retracto y reversión", probarDevoluciones],
   ["Factura electrónica", probarFacturacion],
   ["Reseñas de producto", probarResenas],
+  ["Recordatorio de carrito", probarRecordatorioCarrito],
   ["Seguridad de las cuentas", probarCuentas],
   ["Archivos subidos", probarArchivos],
   ["Almacenamiento en la nube (S3 simulado)", probarAlmacenamiento],

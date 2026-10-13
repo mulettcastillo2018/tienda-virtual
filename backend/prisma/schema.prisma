@@ -282,10 +282,17 @@ model ProductDiscountLog {
 }
 
 model Cart {
-  id     String     @id @default(cuid())
-  userId String     @unique
-  user   User       @relation(fields: [userId], references: [id])
-  items  CartItem[]
+  id             String     @id @default(cuid())
+  userId         String     @unique
+  user           User       @relation(fields: [userId], references: [id])
+  items          CartItem[]
+  // Último cambio del cliente (agregar, quitar, cambiar cantidades). Cada
+  // cambio deja listo un nuevo recordatorio si el carrito vuelve a quedar quieto.
+  lastActivityAt DateTime   @default(now())
+  // Cuándo se le recordó (null = no se ha recordado desde el último cambio).
+  reminderSentAt DateTime?
+
+  @@index([reminderSentAt, lastActivityAt])
 }
 
 model CartItem {

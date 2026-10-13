@@ -257,3 +257,55 @@ export async function sendReturnUpdateEmail(
   `;
   await resend.emails.send({ from, to: toEmail, subject: `Tu solicitud de ${label} — pedido #${data.orderId}`, html });
 }
+
+interface CartReminderForEmail {
+  items: { name: string; quantity: number; price: number }[];
+  cartUrl: string;
+  unsubscribeUrl: string;
+  oneClickUnsubscribeUrl: string;
+  merchant: { name: string; nit: string | null };
+}
+
+// Recordatorio de carrito (comunicación comercial): dice quién escribe y por
+// qué, y trae la baja a la vista y en la cabecera de un clic.
+export function cartReminderEmailHtml(data: CartReminderForEmail) {
+  const itemsHtml = data.items
+    .map(
+      (item) =>
+        `<tr><td style="padding:6px 0">${escapeHtml(item.name)} × ${item.quantity}</td><td style="padding:6px 0;text-align:right">${formatCOP(item.price * item.quantity)}</td></tr>`
+    )
+    .join("");
+  const merchant = `${escapeHtml(data.merchant.name)}${data.merchant.nit ? ` · NIT ${escapeHtml(data.merchant.nit)}` : ""}`;
+  return `
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2>Tus productos siguen en el carrito</h2>
+      <p>Los guardamos para que termines tu compra cuando quieras.</p>
+      <table style="width:100%; border-collapse:collapse;">${itemsHtml}</table>
+      <p><a href="${escapeHtml(data.cartUrl)}" style="display:inline-block;padding:10px 20px;background:#111;color:#fff;text-decoration:none;border-radius:9999px;">Ver mi carrito</a></p>
+      <p style="color:#666;font-size:13px">Los precios y la disponibilidad pueden cambiar hasta que pagues.</p>
+      <hr style="border:none;border-top:1px solid #eee;margin:24px 0" />
+      <p style="color:#666;font-size:12px">${merchant}. Recibes este correo porque autorizaste recibir ofertas y recordatorios. <a href="${escapeHtml(data.unsubscribeUrl)}">Dejar de recibirlos</a>.</p>
+    </div>
+  `;
+}
+
+export async function sendCartReminderEmail(toEmail: string, data: CartReminderForEmail) {
+  if (isUndeliverable(toEmail)) return;
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.warn("RESEND_API_KEY no configurado — se omite el recordatorio del carrito.");
+    return;
+  }
+  const resend = new Resend(apiKey);
+  const from = process.env.STORE_FROM_EMAIL ?? "Tienda Virtual <onboarding@resend.dev>";
+  await resend.emails.send({
+    from,
+    to: toEmail,
+    subject: "Tus productos siguen en el carrito",
+    html: cartReminderEmailHtml(data),
+    headers: {
+      "List-Unsubscribe": `<${data.oneClickUnsubscribeUrl}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    },
+  });
+}

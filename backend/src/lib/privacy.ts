@@ -4,7 +4,7 @@ import { prisma } from "./prisma";
 // Versión vigente de la política de tratamiento de datos (la que publica
 // /privacidad en la tienda). Si el texto cambia de fondo, sube la versión y
 // a cada cliente se le pide aceptarla de nuevo.
-export const PRIVACY_POLICY_VERSION = "2026-10-12";
+export const PRIVACY_POLICY_VERSION = "2026-10-13";
 
 type Db = Prisma.TransactionClient | typeof prisma;
 
